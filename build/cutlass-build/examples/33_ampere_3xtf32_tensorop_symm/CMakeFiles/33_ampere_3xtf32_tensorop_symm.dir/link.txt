@@ -1,1 +1,0 @@
-/usr/lib64/ccache/g++ @CMakeFiles/33_ampere_3xtf32_tensorop_symm.dir/objects1.rsp -o 33_ampere_3xtf32_tensorop_symm @CMakeFiles/33_ampere_3xtf32_tensorop_symm.dir/linkLibs.rsp -L"/usr/local/cuda/targets/x86_64-linux/lib/stubs" -L"/usr/local/cuda/targets/x86_64-linux/lib"

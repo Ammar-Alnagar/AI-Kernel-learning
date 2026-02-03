@@ -23,8 +23,8 @@ using namespace cute;
 // Device function to demonstrate tiled copy operations
 __global__ void tiled_copy_kernel(float* global_input, float* global_output, int M, int N) {
     // Define shared memory for input and output tiles
-    __shared__ float smem_input[128];  // Shared memory for input tile
-    __shared__ float smem_output[128]; // Shared memory for output tile
+    __shared__ __align__(16) float smem_input[128];  // Shared memory for input tile, aligned for vectorization
+    __shared__ __align__(16) float smem_output[128]; // Shared memory for output tile, aligned for vectorization
 
     // Thread block and thread indices
     int tid = threadIdx.x;  // Thread ID within block (0-127 for blockDim.x=128)
@@ -35,33 +35,43 @@ __global__ void tiled_copy_kernel(float* global_input, float* global_output, int
     // Each thread will handle multiple elements
     constexpr int TILE_M = 32;
     constexpr int TILE_N = 32;
-    
+
     // Calculate which tile this block is responsible for
-    int tile_row_start = (bid * TILE_M) % M;
-    int tile_col_start = ((bid * TILE_M) / M) * TILE_N;
+    int tile_row_start = bid * TILE_M;
+    int tile_col_start = 0; // For simplicity, we'll process the first TILE_N columns
 
     // Define the layout for the input tile in global memory
     // Shape: 32 rows x 32 columns
     // Stride: N (leading dimension) for rows, 1 for columns (row-major)
+    // Use compile-time constants for layout definition
     auto gInputLayout = make_layout(make_shape(Int<TILE_M>{}, Int<TILE_N>{}),
                                     make_stride(Int<N>{}, Int<1>{}));
 
     // Define the layout for the same tile in shared memory
-    // For coalesced access, we often use a swizzled layout in shared memory
+    // For coalesced access, we use a simple row-major layout in shared memory
     auto sInputLayout = make_layout(make_shape(Int<TILE_M>{}, Int<TILE_N>{}),
-                                    make_stride(Int<32>{}, Int<1>{}));  // Simple row-major in shared
+                                    make_stride(Int<TILE_N>{}, Int<1>{}));
 
     // Create tensors representing the global and shared memory views
-    auto gInput = make_tensor(global_input + tile_row_start * N + tile_col_start, gInputLayout);
-    auto sInput = make_tensor(smem_input, sInputLayout);
+    auto gInput = make_tensor(make_gmem_ptr(global_input + tile_row_start * N + tile_col_start), gInputLayout);
+    auto sInput = make_tensor(make_smem_ptr(smem_input), sInputLayout);
 
     // Define the copy operation using CuTe's copy atom
     // We'll use a simple copy atom that handles vectorized access
-    auto copy_op = make_copy(Copy_Atom<SM75_U32x4_LDSM_N, float>{});
+    auto copy_atom = Copy_Atom<DefaultCopy, float>{};
+
+    // Create a tiled copy operation that specifies how threads participate in the copy
+    // We'll use 128 threads to copy a 32x32 tile (1024 elements total)
+    // Each thread copies 8 elements (since 1024/128 = 8)
+    auto tiled_copy = make_tiled_copy(
+        copy_atom,
+        Layout<Shape<_128>,Stride<_1>>{},  // 128 threads in 1D
+        Layout<Shape<_8>,_1>{}             // Each thread copies 8 elements
+    );
 
     // Perform the tiled copy from global to shared memory
     // This operation automatically handles vectorization when possible
-    copy(copy_op, gInput, sInput);
+    copy(tiled_copy, gInput, sInput);
 
     // Synchronize threads to ensure all data is loaded
     __syncthreads();
@@ -73,24 +83,17 @@ __global__ void tiled_copy_kernel(float* global_input, float* global_output, int
     for (int i = 0; i < size<0>(sInputLayout); ++i) {
         #pragma unroll
         for (int j = 0; j < size<1>(sInputLayout); ++j) {
-            if (tid < size(sInputLayout)) {  // Basic bounds check
-                // Calculate linear index for this thread
-                int linear_idx = (tid * size(sInputLayout) + i * size<1>(sInputLayout) + j) % size(sInputLayout);
-                if (linear_idx < 128) {
-                    sInput(i, j) *= 2.0f;  // Simple transformation
-                }
-            }
+            sInput(i, j) *= 2.0f;  // Simple transformation
         }
     }
 
     // Define the output tile layout in global memory
     auto gOutputLayout = make_layout(make_shape(Int<TILE_M>{}, Int<TILE_N>{}),
                                      make_stride(Int<N>{}, Int<1>{}));
-    auto gOutput = make_tensor(global_output + tile_row_start * N + tile_col_start, gOutputLayout);
-    auto sOutput = make_tensor(smem_output, sInputLayout);  // Same layout as input for simplicity
+    auto gOutput = make_tensor(make_gmem_ptr(global_output + tile_row_start * N + tile_col_start), gOutputLayout);
 
     // Copy transformed data from shared to global output
-    copy(copy_op, sInput, gOutput);
+    copy(tiled_copy, sInput, gOutput);
 
     // Synchronize before kernel completion
     __syncthreads();
@@ -99,7 +102,7 @@ __global__ void tiled_copy_kernel(float* global_input, float* global_output, int
 // Alternative implementation showing more advanced tiled copy concepts
 __global__ void advanced_tiled_copy_kernel(float* global_input, float* global_output, int M, int N) {
     // Define shared memory
-    __shared__ float smem_tile[128];
+    __shared__ __align__(16) float smem_tile[128];
 
     // Thread and block indices
     int tid = threadIdx.x;
@@ -109,47 +112,40 @@ __global__ void advanced_tiled_copy_kernel(float* global_input, float* global_ou
     // We'll use a 16x16 tile handled by 128 threads (each thread handles 2 elements)
     constexpr int TILE_M = 16;
     constexpr int TILE_N = 16;
-    constexpr int ELEMS_PER_THREAD = 2;
 
     // Calculate which tile this block processes
-    int block_tiles_m = (M + TILE_M - 1) / TILE_M;
-    int tile_id = bid;
-    int tile_m = tile_id % block_tiles_m;
-    int tile_n = tile_id / block_tiles_m;
-
-    int tile_row_start = tile_m * TILE_M;
-    int tile_col_start = tile_n * TILE_N;
+    int block_row = bid * TILE_M;
+    int block_col = 0; // For simplicity, process first TILE_N columns
 
     // Define the global memory layout for the tile
     auto gLayout = make_layout(make_shape(Int<TILE_M>{}, Int<TILE_N>{}),
                                make_stride(Int<N>{}, Int<1>{}));
 
-    // Define how threads map to elements in the tile
-    // We'll use a blocked arrangement: 16 threads handle rows, 8 threads handle columns
-    // This creates a 16x8 thread block that handles the 16x16 tile with 2 elements per thread
-    auto thr_layout = make_layout(make_shape(Int<16>{}, Int<8>{}),
-                                  make_stride(Int<8>{}, Int<1>{}));
+    // Create the global tensor
+    auto gTensor = make_tensor(make_gmem_ptr(global_input + block_row * N + block_col), gLayout);
 
-    // Create the thread-blocked tensor view
-    auto thrMMA = make_tensor(make_gmem_ptr(global_input + tile_row_start * N + tile_col_start),
-                              gLayout,
-                              thr_layout);
-
-    // Define the shared memory layout with swizzling for bank conflict avoidance
-    // Swizzle the last dimension to avoid bank conflicts
+    // Define the shared memory layout
     auto sLayout = make_layout(make_shape(Int<TILE_M>{}, Int<TILE_N>{}),
-                               make_stride(Int<16>{}, Int<1>{}));
+                               make_stride(Int<TILE_N>{}, Int<1>{}));
 
     // Create shared memory tensor
-    auto sTile = make_tensor(make_smem_ptr(smem_tile), sLayout);
+    auto sTensor = make_tensor(make_smem_ptr(smem_tile), sLayout);
 
     // Define the copy operation with vectorization considerations
     // Use a copy atom that supports vectorized access
     auto copy_atom = Copy_Atom<DefaultCopy, float>{};
 
+    // Create a tiled copy that maps 128 threads to copy 16x16=256 elements
+    // Each thread will copy 2 elements (256/128 = 2)
+    auto tiled_copy = make_tiled_copy(
+        copy_atom,
+        Layout<Shape<_128>,Stride<_1>>{},  // 128 threads in 1D
+        Layout<Shape<_2>,_1>{}             // Each thread copies 2 elements
+    );
+
     // Perform the copy operation - CuTe handles the vectorization automatically
     // based on the layout compatibility
-    copy(copy_atom, thrMMA(_,_,tid), sTile(_,_,tid));
+    copy(tiled_copy, gTensor, sTensor);
 
     // Synchronize threads
     __syncthreads();
@@ -159,16 +155,14 @@ __global__ void advanced_tiled_copy_kernel(float* global_input, float* global_ou
     for (int i = 0; i < size<0>(sLayout); ++i) {
         #pragma unroll
         for (int j = 0; j < size<1>(sLayout); ++j) {
-            sTile(i, j) *= 2.0f;
+            sTensor(i, j) *= 2.0f;
         }
     }
 
     // Copy back to global memory
-    auto gOutputLayout = make_layout(make_shape(Int<TILE_M>{}, Int<TILE_N>{}),
-                                     make_stride(Int<N>{}, Int<1>{}));
-    auto gOutput = make_tensor(global_output + tile_row_start * N + tile_col_start, gOutputLayout);
+    auto gOutput = make_tensor(make_gmem_ptr(global_output + block_row * N + block_col), gLayout);
 
-    copy(copy_atom, sTile, gOutput(_,_,tid));
+    copy(tiled_copy, sTensor, gOutput);
 
     __syncthreads();
 }
@@ -201,7 +195,7 @@ int main() {
 
     // Launch kernel with 1D block of 128 threads
     dim3 block_dim(128);
-    dim3 grid_dim((M * N + 1023) / 1024);  // Rough calculation for demo
+    dim3 grid_dim((M + 31) / 32);  // One block per 32-row tile
 
     std::cout << "Launching basic tiled copy kernel..." << std::endl;
     tiled_copy_kernel<<<grid_dim, block_dim>>>(d_input, d_output, M, N);
@@ -220,8 +214,8 @@ int main() {
     // Verify results (first few elements)
     std::cout << "Verification (first 10 elements):" << std::endl;
     for (int i = 0; i < 10; ++i) {
-        std::cout << "Input[" << i << "] = " << h_input[i] 
-                  << ", Output[" << i << "] = " << h_output[i] 
+        std::cout << "Input[" << i << "] = " << h_input[i]
+                  << ", Output[" << i << "] = " << h_output[i]
                   << ", Expected = " << (h_input[i] * 2.0f) << std::endl;
     }
 

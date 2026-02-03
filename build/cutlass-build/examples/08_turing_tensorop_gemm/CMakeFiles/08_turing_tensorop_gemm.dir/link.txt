@@ -1,1 +1,0 @@
-/usr/lib64/ccache/g++ @CMakeFiles/08_turing_tensorop_gemm.dir/objects1.rsp -o 08_turing_tensorop_gemm @CMakeFiles/08_turing_tensorop_gemm.dir/linkLibs.rsp -L"/usr/local/cuda/targets/x86_64-linux/lib/stubs" -L"/usr/local/cuda/targets/x86_64-linux/lib"

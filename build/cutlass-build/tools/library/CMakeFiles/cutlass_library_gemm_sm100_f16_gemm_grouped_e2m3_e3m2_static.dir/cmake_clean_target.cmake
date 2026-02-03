@@ -1,3 +1,0 @@
-file(REMOVE_RECURSE
-  "libcutlass_gemm_sm100_f16_gemm_grouped_e2m3_e3m2.a"
-)

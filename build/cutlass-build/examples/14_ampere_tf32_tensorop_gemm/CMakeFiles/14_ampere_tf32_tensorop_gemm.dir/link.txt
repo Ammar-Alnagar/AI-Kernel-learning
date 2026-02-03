@@ -1,1 +1,0 @@
-/usr/lib64/ccache/g++ @CMakeFiles/14_ampere_tf32_tensorop_gemm.dir/objects1.rsp -o 14_ampere_tf32_tensorop_gemm @CMakeFiles/14_ampere_tf32_tensorop_gemm.dir/linkLibs.rsp -L"/usr/local/cuda/targets/x86_64-linux/lib/stubs" -L"/usr/local/cuda/targets/x86_64-linux/lib"

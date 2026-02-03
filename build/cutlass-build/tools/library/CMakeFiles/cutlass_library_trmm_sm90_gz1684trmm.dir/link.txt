@@ -1,1 +1,0 @@
-/usr/lib64/ccache/g++ -fPIC -shared -Wl,-soname,libcutlass_trmm_sm90_gz1684trmm.so -o libcutlass_trmm_sm90_gz1684trmm.so @CMakeFiles/cutlass_library_trmm_sm90_gz1684trmm.dir/objects1.rsp @CMakeFiles/cutlass_library_trmm_sm90_gz1684trmm.dir/linkLibs.rsp -L"/usr/local/cuda/targets/x86_64-linux/lib/stubs" -L"/usr/local/cuda/targets/x86_64-linux/lib"

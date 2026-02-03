@@ -1,1 +1,0 @@
-/usr/lib64/ccache/g++ @CMakeFiles/20_simt_canonical.dir/objects1.rsp -o 20_simt_canonical @CMakeFiles/20_simt_canonical.dir/linkLibs.rsp -L"/usr/local/cuda/targets/x86_64-linux/lib/stubs" -L"/usr/local/cuda/targets/x86_64-linux/lib"

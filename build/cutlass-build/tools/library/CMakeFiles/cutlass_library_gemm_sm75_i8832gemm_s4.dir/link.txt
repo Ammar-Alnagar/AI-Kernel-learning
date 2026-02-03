@@ -1,1 +1,0 @@
-/usr/lib64/ccache/g++ -fPIC -shared -Wl,-soname,libcutlass_gemm_sm75_i8832gemm_s4.so -o libcutlass_gemm_sm75_i8832gemm_s4.so @CMakeFiles/cutlass_library_gemm_sm75_i8832gemm_s4.dir/objects1.rsp @CMakeFiles/cutlass_library_gemm_sm75_i8832gemm_s4.dir/linkLibs.rsp -L"/usr/local/cuda/targets/x86_64-linux/lib/stubs" -L"/usr/local/cuda/targets/x86_64-linux/lib"

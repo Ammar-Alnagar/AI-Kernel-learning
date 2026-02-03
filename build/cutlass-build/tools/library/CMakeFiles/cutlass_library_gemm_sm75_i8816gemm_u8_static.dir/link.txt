@@ -1,2 +1,0 @@
-/usr/bin/ar qc libcutlass_gemm_sm75_i8816gemm_u8.a CMakeFiles/cutlass_library_gemm_sm75_i8816gemm_u8_objs.dir/generated/gemm/75/i8816gemm_u8/all_sm75_i8816gemm_u8_gemm_operations.cu.o CMakeFiles/cutlass_library_gemm_sm75_i8816gemm_u8_objs.dir/generated/gemm/75/i8816gemm_u8/cutlass_tensorop_i8816gemm_u8_256x128_64x2_tn_align16.cu.o
-/usr/bin/ranlib libcutlass_gemm_sm75_i8816gemm_u8.a

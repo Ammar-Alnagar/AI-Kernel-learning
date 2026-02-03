@@ -1,1 +1,0 @@
-/usr/lib64/ccache/g++ @CMakeFiles/12_gemm_bias_relu.dir/objects1.rsp -o 12_gemm_bias_relu @CMakeFiles/12_gemm_bias_relu.dir/linkLibs.rsp -L"/usr/local/cuda/targets/x86_64-linux/lib/stubs" -L"/usr/local/cuda/targets/x86_64-linux/lib"

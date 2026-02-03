@@ -1,8 +1,0 @@
-# CMake generated Testfile for 
-# Source directory: /home/ammar/work/cutlass_learninig/third_party/cutlass/examples/26_ampere_wgrad_mainloop_fusion
-# Build directory: /home/ammar/work/cutlass_learninig/build/cutlass-build/examples/26_ampere_wgrad_mainloop_fusion
-# 
-# This file includes the relevant testing commands required for 
-# testing this directory and lists subdirectories to be tested as well.
-add_test([=[ctest_examples_26_ampere_wgrad_mainloop_fusion]=] "/home/ammar/work/cutlass_learninig/build/cutlass-build/examples/26_ampere_wgrad_mainloop_fusion/26_ampere_wgrad_mainloop_fusion")
-set_tests_properties([=[ctest_examples_26_ampere_wgrad_mainloop_fusion]=] PROPERTIES  DISABLED "OFF" WORKING_DIRECTORY "./bin" _BACKTRACE_TRIPLES "/home/ammar/work/cutlass_learninig/build/cutlass-build/examples/26_ampere_wgrad_mainloop_fusion/ctest/ctest_examples_26_ampere_wgrad_mainloop_fusion/CTestTestfile.ctest_examples_26_ampere_wgrad_mainloop_fusion.cmake;85;add_test;/home/ammar/work/cutlass_learninig/build/cutlass-build/examples/26_ampere_wgrad_mainloop_fusion/ctest/ctest_examples_26_ampere_wgrad_mainloop_fusion/CTestTestfile.ctest_examples_26_ampere_wgrad_mainloop_fusion.cmake;0;;/home/ammar/work/cutlass_learninig/third_party/cutlass/CMakeLists.txt;1043;include;/home/ammar/work/cutlass_learninig/third_party/cutlass/examples/CMakeLists.txt;71;cutlass_add_executable_tests;/home/ammar/work/cutlass_learninig/third_party/cutlass/examples/26_ampere_wgrad_mainloop_fusion/CMakeLists.txt;32;cutlass_example_add_executable;/home/ammar/work/cutlass_learninig/third_party/cutlass/examples/26_ampere_wgrad_mainloop_fusion/CMakeLists.txt;0;")

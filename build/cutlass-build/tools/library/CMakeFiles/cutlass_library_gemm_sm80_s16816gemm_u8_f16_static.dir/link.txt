@@ -1,2 +1,0 @@
-/usr/bin/ar qc libcutlass_gemm_sm80_s16816gemm_u8_f16.a CMakeFiles/cutlass_library_gemm_sm80_s16816gemm_u8_f16_objs.dir/generated/gemm/80/s16816gemm_u8_f16/all_sm80_s16816gemm_u8_f16_gemm_operations.cu.o CMakeFiles/cutlass_library_gemm_sm80_s16816gemm_u8_f16_objs.dir/generated/gemm/80/s16816gemm_u8_f16/cutlass_tensorop_s16816gemm_u8_f16_128x128_64x4_tn_align16.cu.o
-/usr/bin/ranlib libcutlass_gemm_sm80_s16816gemm_u8_f16.a

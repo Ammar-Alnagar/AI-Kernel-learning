@@ -1,1 +1,0 @@
- -Wl,-rpath,'$$ORIGIN' -Wl,-rpath,'$$ORIGIN/../lib64' -Wl,-rpath,'$$ORIGIN/../lib' -Wl,-rpath,'/usr/local/cuda/lib64' -Wl,-rpath,'/usr/local/cuda/lib' -ldl /usr/local/cuda/lib64/stubs/libcuda.so -Wl,-rpath,'$$ORIGIN' -Wl,-rpath,'$$ORIGIN/../lib64' -Wl,-rpath,'$$ORIGIN/../lib' -Wl,-rpath,'/usr/local/cuda/lib64' -Wl,-rpath,'/usr/local/cuda/lib' -ldl -lcudadevrt -lcudart 

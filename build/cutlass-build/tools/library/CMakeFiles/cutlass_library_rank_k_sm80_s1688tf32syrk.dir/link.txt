@@ -1,1 +1,0 @@
-/usr/lib64/ccache/g++ -fPIC -shared -Wl,-soname,libcutlass_rank_k_sm80_s1688tf32syrk.so -o libcutlass_rank_k_sm80_s1688tf32syrk.so @CMakeFiles/cutlass_library_rank_k_sm80_s1688tf32syrk.dir/objects1.rsp @CMakeFiles/cutlass_library_rank_k_sm80_s1688tf32syrk.dir/linkLibs.rsp -L"/usr/local/cuda/targets/x86_64-linux/lib/stubs" -L"/usr/local/cuda/targets/x86_64-linux/lib"

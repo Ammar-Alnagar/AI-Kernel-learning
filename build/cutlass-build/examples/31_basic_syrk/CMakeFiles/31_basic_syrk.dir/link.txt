@@ -1,1 +1,0 @@
-/usr/lib64/ccache/g++ @CMakeFiles/31_basic_syrk.dir/objects1.rsp -o 31_basic_syrk @CMakeFiles/31_basic_syrk.dir/linkLibs.rsp -L"/usr/local/cuda/targets/x86_64-linux/lib/stubs" -L"/usr/local/cuda/targets/x86_64-linux/lib"

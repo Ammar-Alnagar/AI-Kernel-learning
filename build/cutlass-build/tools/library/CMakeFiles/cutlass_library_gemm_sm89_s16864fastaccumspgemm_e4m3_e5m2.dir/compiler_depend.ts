@@ -1,2 +1,0 @@
-# CMAKE generated file: DO NOT EDIT!
-# Timestamp file for compiler generated dependencies management for cutlass_library_gemm_sm89_s16864fastaccumspgemm_e4m3_e5m2.

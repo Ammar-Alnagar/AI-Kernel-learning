@@ -1,2 +1,0 @@
-# Empty dependencies file for cutlass_library_gemm_sm120_void_gemm_e5m2_e2m1.
-# This may be replaced when dependencies are built.

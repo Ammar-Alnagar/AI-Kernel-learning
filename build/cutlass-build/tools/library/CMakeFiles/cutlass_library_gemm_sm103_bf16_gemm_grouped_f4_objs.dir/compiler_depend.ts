@@ -1,2 +1,0 @@
-# CMAKE generated file: DO NOT EDIT!
-# Timestamp file for compiler generated dependencies management for cutlass_library_gemm_sm103_bf16_gemm_grouped_f4_objs.
