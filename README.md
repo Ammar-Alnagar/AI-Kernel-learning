@@ -57,6 +57,24 @@ Complete build system expertise for GPU development:
 - **Module 05**: Trees - Hierarchical data structures
 - **Module 06**: Graphs - Complex relationship modeling
 
+### 6. GPU Data Structures & Algorithms (GPU-DSA)
+Specialized algorithms optimized for GPU architectures:
+
+- **Parallel Reduction**: Tree-based and Warp Shuffle optimization
+- **Parallel Prefix Sum**: Blelloch and Kogge-Stone algorithms
+- **Parallel Histogramming**: Privatization and Atomic aggregation
+- **Radix Sort**: LSB/MSB implementations
+- **Bitonic Sort**: Parallel sorting algorithm
+- **Tiled Matrix Multiplication**: GEMM optimizations
+- **Double Buffering and Async Copy Pipelining**: Overlapping computation and memory transfer
+- **Shared Memory Swizzling**: XOR layouts to avoid bank conflicts
+- **Z-Curve / Morton Order**: Space-filling curves
+- **Online Softmax**: Safe Softmax algorithm
+- **FlashAttention**: Fused Attention with Recomputation
+- **PagedAttention**: Virtual Memory mapping for KV-Cache
+- **Fused Layer Normalization**: Optimized GPU implementation
+- **Compressed Sparse Formats**: CSR and Blocked-Ellpack implementations
+
 ## Target Hardware & Architecture
 
 - **Primary Target**: NVIDIA RTX 4060 (Compute Capability 8.9 / Ada Lovelace)
