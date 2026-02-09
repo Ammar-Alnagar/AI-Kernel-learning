@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Build script for Module 4: Fused Bias-Add
-# This script builds module 4 using CMake
+# Build script for Module 1: Layouts and Tensors
+# This script builds module 1 using CMake
 
 set -e  # Exit on any error
 
-echo "Building Module 4: Fused Bias-Add..."
+echo "Building Module 1: Layouts and Tensors..."
 
 # Navigate to module directory
 cd "$(dirname "$0")"
@@ -22,6 +22,6 @@ cmake .. -DCMAKE_BUILD_TYPE=Release
 echo "Building module..."
 make -j$(nproc)
 
-echo "Module 4 build completed successfully!"
+echo "Module 1 build completed successfully!"
 echo ""
-echo "To run the module, execute: ./mma_atom_spatial"
+echo "To run the module, execute: ./module1"

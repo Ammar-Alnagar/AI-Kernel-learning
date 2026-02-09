@@ -66,17 +66,15 @@ function(add_module NAME SOURCE_DIR)
 endfunction()
 
 # Add executables for each module
-add_module(module1 ${CMAKE_CURRENT_SOURCE_DIR}/module1)
-add_module(module2 ${CMAKE_CURRENT_SOURCE_DIR}/module2)
-add_module(module3 ${CMAKE_CURRENT_SOURCE_DIR}/module3)
-add_module(module4 ${CMAKE_CURRENT_SOURCE_DIR}/module4)
-
-# Additional modules can be added as they are implemented
-# add_module(module5 ${CMAKE_CURRENT_SOURCE_DIR}/module5)
-# add_module(module6 ${CMAKE_CURRENT_SOURCE_DIR}/module6)
+add_module(module1 ${CMAKE_CURRENT_SOURCE_DIR}/module1-Layouts and Tensors)
+add_module(module2 ${CMAKE_CURRENT_SOURCE_DIR}/module2-Tiled Copy)
+add_module(module3 ${CMAKE_CURRENT_SOURCE_DIR}/module3-Tiled MMA)
+add_module(module4 ${CMAKE_CURRENT_SOURCE_DIR}/module4-Fused Bias-Add)
+add_module(module5 ${CMAKE_CURRENT_SOURCE_DIR}/module5-Mainloop Pipelining)
+add_module(module6 ${CMAKE_CURRENT_SOURCE_DIR}/module6-Fused Epilogues)
 
 # Default target to build all modules
-add_custom_target(all_modules DEPENDS module1 module2 module3 module4)
+add_custom_target(all_modules DEPENDS module1 module2 module3 module4 module5 module6)
 
 # Installation rules (optional)
 install(TARGETS module1
