@@ -55,7 +55,7 @@ int main() {
   printf("Complete the missing code sections in the matrixMul kernel.\n\n");
 
   // Setup for matrix multiplication exercise
-  const int WIDTH = 1 << 10;
+  const int WIDTH = 8192;
   const int N = WIDTH * WIDTH;
   size_t size = N * sizeof(float);
 
@@ -80,7 +80,7 @@ int main() {
   cudaMemcpy(d_B, h_B, size, cudaMemcpyHostToDevice);
 
   // Launch matrix multiplication kernel
-  dim3 blockSize(32, 32); // 16x16 threads per block
+  dim3 blockSize(32, 8); // 16x16 threads per block
   dim3 gridSize((WIDTH + blockSize.x - 1) / blockSize.x,
                 (WIDTH + blockSize.y - 1) / blockSize.y);
 
