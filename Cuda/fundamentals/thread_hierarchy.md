@@ -134,6 +134,9 @@ After mastering this concept, you should be able to:
 - Understand how thread indexing works and how to use it effectively
 - Design thread organizations that maximize parallelism and minimize resource conflicts
 
-## Hands-on Tutorial
+## Hands-on Tutorials
 
-See the `thread_hierarchy_tutorial.cu` file in this directory for practical exercises that reinforce these concepts.
+See the following files in this directory for practical exercises that reinforce these concepts:
+- `thread_hierarchy_tutorial.cu` - Complete tutorial with examples
+- `hands_on_kernels_tutorial.cu` - Hands-on exercises with incomplete code for you to complete
+- `hands_on_kernels_exercises.md` - Detailed exercise instructions and solutions
