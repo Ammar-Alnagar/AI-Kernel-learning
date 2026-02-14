@@ -16,6 +16,11 @@ Welcome to CUDAlings, a comprehensive collection of CUDA concepts designed for l
 ├── sort/                  # Sorting algorithms with parallel approaches
 ├── scan/                  # Exclusive/inclusive scan operations
 ├── spmv/                  # Sparse matrix-vector multiplication
+├── fused_ops/             # Fused operations (FMA, etc.)
+├── attention/             # Attention mechanisms
+├── softmax/               # Softmax function
+├── gemm/                  # General matrix multiplication
+├── gather_scatter/        # Gather and scatter operations
 └── utils/                 # Common utilities for timing and profiling
 ```
 
