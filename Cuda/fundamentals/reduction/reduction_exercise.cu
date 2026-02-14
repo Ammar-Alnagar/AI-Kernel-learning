@@ -32,7 +32,7 @@ __global__ void reductionSum(float *input, float *output, int n) {
   // Hint: Each iteration reduces the number of active elements by half
   for (int s = 1; s < blockDim.x; s *= 2) {
     // TODO: Check bounds and perform reduction
-    if (/* YOUR CONDITION HERE */) {
+    if (tid % (2 * s) == 0) {
       // TODO: Add element at tid+s to element at tid
       /* YOUR CODE HERE */;
     }
