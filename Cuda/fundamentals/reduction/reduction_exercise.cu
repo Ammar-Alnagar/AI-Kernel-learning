@@ -14,7 +14,7 @@ __global__ void reductionSum(float *input, float *output, int n) {
   // TODO: Declare shared memory for this block
   // Hint: Use __shared__ keyword and size it appropriately
   /* YOUR DECLARATION HERE */;
-  __shared__ sdata[256];
+  __shared__ float sdata[256];
 
   int tid = threadIdx.x;
   int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -34,7 +34,7 @@ __global__ void reductionSum(float *input, float *output, int n) {
     // TODO: Check bounds and perform reduction
     if (tid % (2 * s) == 0) {
       // TODO: Add element at tid+s to element at tid
-      /* YOUR CODE HERE */;
+      sdata[tid] += sdata[tid + s];
     }
     __syncthreads();
   }
@@ -57,7 +57,7 @@ int main() {
   printf("Complete the missing code sections in the reductionSum kernel.\n\n");
 
   // Setup for reduction exercise
-  const int N = 1024;
+  const int N = 8192;
   size_t size = N * sizeof(float);
   size_t blockSize = 256;
   size_t gridSize = (N + blockSize - 1) / blockSize;
