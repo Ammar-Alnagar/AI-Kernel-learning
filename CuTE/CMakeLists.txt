@@ -49,5 +49,16 @@ target_include_directories(shared_memory_layouts PRIVATE ${CUTLASS_INCLUDE_DIR})
 add_executable(producer_consumer_pipeline Module_06_Collective_Mainloops/producer_consumer_pipeline.cu)
 target_include_directories(producer_consumer_pipeline PRIVATE ${CUTLASS_INCLUDE_DIR})
 
+# Projects Module - Hands-on kernel implementations
+add_subdirectory(Projects)
+
 # Installation rules
-install(TARGETS layout_study tensor_basics tiled_copy_basics mma_atom_basics shared_memory_layouts producer_consumer_pipeline DESTINATION bin)
+install(TARGETS 
+    layout_study 
+    tensor_basics 
+    tiled_copy_basics 
+    mma_atom_basics 
+    shared_memory_layouts 
+    producer_consumer_pipeline 
+    DESTINATION bin
+)

@@ -30,6 +30,24 @@ This repository contains 6 progressive modules to master CuTe (CUTLASS 3.x) for 
 - **Focus**: Full producer-consumer pipeline
 - **Key Concepts**: Complete kernel orchestration, thread cooperation
 
+## Projects Module
+
+After completing the learning modules, apply your knowledge in the **[Projects](Projects/)** directory:
+
+| Project | Difficulty | Description |
+|---------|------------|-------------|
+| [01: Vector Add](Projects/01_vector_add/) | ⭐ Beginner | Introduction to CuTe tensors and element-wise ops |
+| [02: GEMM](Projects/02_gemm/) | ⭐⭐ Intermediate | Tiled matrix multiplication with MMA atoms |
+| [03: Softmax](Projects/03_softmax/) | ⭐⭐ Intermediate | Row-wise reduction with numerical stability |
+| [04: FlashAttention](Projects/04_flash_attention/) | ⭐⭐⭐ Advanced | Tiled attention with online softmax |
+| [05: FlashInfer](Projects/05_flashinfer/) | ⭐⭐⭐⭐ Expert | Variable sequence lengths with PagedAttention |
+
+Each project includes:
+- Step-by-step README walkthrough
+- Starter code with TODO sections
+- Reference solution in `solution/` directory
+- Individual build targets
+
 ## Learning Path
 Each module builds upon the previous, starting with fundamental layout concepts and progressing to complete kernel implementations. This progression mirrors how compilers like Mojo/MAX generate optimized kernels.
 
