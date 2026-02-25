@@ -21,6 +21,7 @@
 #include "cute/layout.hpp"
 #include "cute/util/print.hpp"
 #include <iostream>
+#include <print>
 
 using namespace cute;
 
@@ -32,10 +33,11 @@ int main() {
   // Hint: Use make_shape(Int<16>{}) and the layout will have stride 1
   // TODO: Uncomment and complete the following line:
   // auto layout_1d = make_layout(make_shape(Int<16>{}), GenRowMajor{});
-
+  auto layout_1d = make_layout(make_shape(int{16}), GenRowMajor{});
   std::cout << "Task 1 - 1D Layout (16 elements):" << std::endl;
   std::cout << "TODO: Create and print a 1D layout" << std::endl;
   // TODO: Print the layout using print(layout_1d) or std::cout << layout_1d
+  print(layout_1d);
   std::cout << std::endl;
 
   // TASK 2: Create a 2D row-major layout with shape (8, 4)
@@ -44,10 +46,12 @@ int main() {
   // TODO: Uncomment and complete:
   // auto layout_2d_rm = make_layout(make_shape(Int<8>{}, Int<4>{}),
   // GenRowMajor{});
+  //
+  auto layout_2d_rm = make_layout(make_shape(Int<8>{}, 8), GenRowMajor{});
 
   std::cout << "Task 2 - 2D Row-Major Layout (8x4):" << std::endl;
   std::cout << "TODO: Create and print a 2D row-major layout" << std::endl;
-  // TODO: Print the layout
+  print(layout_2d_rm);
   std::cout << std::endl;
 
   // TASK 3: Create a 2D column-major layout with shape (8, 4)
@@ -56,10 +60,11 @@ int main() {
   // TODO: Uncomment and complete:
   // auto layout_2d_cm = make_layout(make_shape(Int<8>{}, Int<4>{}),
   // GenColMajor{});
-
+  auto layout_2d_cm =
+      make_layout(make_shape(Int<8>{}, Int<4>{}), GenColMajor{});
   std::cout << "Task 3 - 2D Column-Major Layout (8x4):" << std::endl;
   std::cout << "TODO: Create and print a 2D column-major layout" << std::endl;
-  // TODO: Print the layout
+  print(layout_2d_cm);
   std::cout << std::endl;
 
   // TASK 4: Create a 3D layout with shape (4, 4, 2)
@@ -68,10 +73,11 @@ int main() {
   // TODO: Uncomment and complete:
   // auto layout_3d = make_layout(make_shape(Int<4>{}, Int<4>{}, Int<2>{}),
   // GenRowMajor{});
-
+  auto layout_3d =
+      make_layout(make_shape(Int<4>{}, Int<4>{}, Int<2>{}), GenRowMajor{});
   std::cout << "Task 4 - 3D Layout (4x4x2):" << std::endl;
   std::cout << "TODO: Create and print a 3D layout" << std::endl;
-  // TODO: Print the layout
+  print(layout_3d);
   std::cout << std::endl;
 
   // VERIFICATION: Manually verify the offset calculations

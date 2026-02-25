@@ -11,6 +11,7 @@ set(CMAKE_CUDA_ARCHITECTURES 89)
 # Find CuTe/CUTLASS - adjust these paths based on your installation
 find_path(CUTLASS_INCLUDE_DIR NAMES cutlass/cutlass.h
     PATHS
+        ${CMAKE_SOURCE_DIR}/../../../third_party/cutlass/include
         ${CMAKE_SOURCE_DIR}/../../cutlass/include
         /usr/local/cutlass/include
         $ENV{CUTLASS_PATH}/include
@@ -19,6 +20,7 @@ find_path(CUTLASS_INCLUDE_DIR NAMES cutlass/cutlass.h
 
 find_path(CUTE_INCLUDE_DIR NAMES cute/layout.hpp
     PATHS
+        ${CMAKE_SOURCE_DIR}/../../../third_party/cutlass/include
         ${CMAKE_SOURCE_DIR}/../../cutlass/include
         /usr/local/cutlass/include
         $ENV{CUTLASS_PATH}/include

@@ -23,6 +23,7 @@
 
 using namespace cute;
 
+template <typename Layout>
 void debug_layout(const char* name, Layout const& layout) {
     std::cout << "=== " << name << " ===" << std::endl;
     std::cout << "Layout object: " << layout << std::endl;

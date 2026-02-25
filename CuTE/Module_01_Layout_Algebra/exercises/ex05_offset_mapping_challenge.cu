@@ -21,7 +21,8 @@
 
 using namespace cute;
 
-void test_offset_prediction(const char* layout_name, Layout const& layout, 
+template <typename Layout>
+void test_offset_prediction(const char* layout_name, Layout const& layout,
                             int coord0, int coord1, int expected_offset) {
     int actual_offset = layout(coord0, coord1);
     bool correct = (actual_offset == expected_offset);
