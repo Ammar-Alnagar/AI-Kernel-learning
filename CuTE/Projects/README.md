@@ -6,6 +6,8 @@ This module contains **hands-on projects** implementing real-world CUDA kernels 
 
 ## Projects
 
+### Core Projects (01-05)
+
 | # | Project | Difficulty | Concepts |
 |---|---------|------------|----------|
 | 01 | [Vector Add](01_vector_add/) | ⭐ Beginner | CuTe tensors, element-wise ops, thread mapping |
@@ -13,6 +15,30 @@ This module contains **hands-on projects** implementing real-world CUDA kernels 
 | 03 | [Softmax](03_softmax/) | ⭐⭐ Intermediate | Reduction patterns, numerical stability |
 | 04 | [FlashAttention](04_flash_attention/) | ⭐⭐⭐ Advanced | Tiled attention, online softmax, SRAM optimization |
 | 05 | [FlashInfer](05_flashinfer/) | ⭐⭐⭐⭐ Expert | Variable sequences, page tables, PagedAttention |
+
+### Advanced GEMM Projects (06-09)
+
+| # | Project | Difficulty | Concepts |
+|---|---------|------------|----------|
+| 06 | [Tiled GEMM + Shared Memory](06_tiled_gemm_smem/) | ⭐⭐ Intermediate | Shared memory tiling, cooperative loading |
+| 07 | [MMA GEMM + Tensor Cores](07_mma_gemm/) | ⭐⭐⭐ Advanced | Hardware MMA, WMMA, SM80 atoms |
+| 08 | [Pipelined GEMM](08_pipelined_gemm/) | ⭐⭐⭐ Advanced | Async copy, software pipelining |
+| 09 | [Vectorized Copy](09_vectorized_copy/) | ⭐ Beginner | float4 loads, 128-bit memory access |
+
+### Quantized GEMM Projects (11-12)
+
+| # | Project | Difficulty | Concepts |
+|---|---------|------------|----------|
+| 11 | [INT8 GEMM](11_int8_gemm/) | ⭐⭐⭐ Advanced | Quantized arithmetic, per-channel dequant |
+| 12 | [FP8 GEMM](12_fp8_gemm/) | ⭐⭐⭐ Advanced | FP8 E4M3 format, mixed precision |
+
+### Attention Projects (10, 13-14)
+
+| # | Project | Difficulty | Concepts |
+|---|---------|------------|----------|
+| 10 | [Multi-Head Attention + KV-Cache](10_mha_kv_cache/) | ⭐⭐⭐ Advanced | MHA, incremental decoding, caching |
+| 13 | [Fused GEMM + RoPE](13_gemm_rope/) | ⭐⭐⭐ Advanced | Rotary embeddings, fused operations |
+| 14 | [MLA (Multi-head Latent Attention)](14_mla/) | ⭐⭐⭐⭐ Expert | Latent compression, memory-efficient attention |
 
 ## Building Projects
 
@@ -30,13 +56,52 @@ make -j$(nproc)
 Each project can be built individually:
 
 ```bash
-# Build specific project
+# Core projects
 make project_01_vector_add
 make project_02_gemm
 make project_03_softmax
 make project_04_flash_attention
 make project_05_flashinfer
+
+# Advanced GEMM projects
+make project_06_tiled_gemm_smem
+make project_07_mma_gemm
+make project_08_pipelined_gemm
+make project_09_vectorized_copy
+
+# Quantized GEMM projects
+make project_11_int8_gemm
+make project_12_fp8_gemm
+
+# Attention projects
+make project_10_mha_kv_cache
+make project_13_gemm_rope
+make project_14_mla
 ```
+
+### Build a Single Project Standalone
+
+Each project can be built **independently** from its own directory:
+
+```bash
+# Navigate to project directory
+cd Projects/01_vector_add
+
+# Create build directory
+mkdir -p build && cd build
+
+# Configure and build
+cmake ..
+make -j$(nproc)
+
+# Run
+./project_01_vector_add
+```
+
+This is useful for:
+- Working on a single project without building everything
+- Faster iteration during development
+- Isolating build issues
 
 ### Run a Project
 
