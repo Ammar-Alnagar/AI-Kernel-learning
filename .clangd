@@ -1,0 +1,22 @@
+CompileFlags:
+  Add:
+    - "-std=c++17"
+    - "-I/home/ammar/work/AI-Kernel-learning/third_party/cutlass/include"
+    - "-I/home/ammar/work/AI-Kernel-learning/third_party/cutlass/tools/util/include"
+    - "-I/usr/local/cuda/include"
+    - "--cuda-gpu-arch=sm_89"
+    - "-D__CUDACC__"
+    - "-D__CUDA_ARCH__=890"
+    - "-DCUTLASS_ARCH_MMA_SM89_SUPPORTED=1"
+  Remove:
+    - "-forward-unknown-to-host-compiler"
+    - "--generate-code*"
+    - "-Xcompiler*"
+    - "--expt-relaxed-constexpr"
+    - "--expt-extended-lambda"
+
+Diagnostics:
+  Suppress:
+    - drv_unknown_argument
+    - unknown_cuda_version
+    - cuda_version_mismatch
