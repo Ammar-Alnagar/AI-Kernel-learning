@@ -1,144 +1,210 @@
-/**
- * Exercise 06: Hierarchical Layouts
- * 
- * Objective: Master hierarchical layouts for organizing thread blocks, warps,
- *            and threads in CUDA kernels
- * 
- * Tasks:
- * 1. Create a layout representing thread block hierarchy
- * 2. Map warps to threads within a block
- * 3. Create a 3-level hierarchy: block -> warp -> thread
- * 4. Understand how hierarchy enables scalable kernels
- * 
- * Key Concepts:
- * - Hierarchy: Multiple levels of organization
- * - Thread Blocks: Groups of threads that can cooperate
- * - Warps: Groups of 32 threads executed together
- * - Scalability: Same code works for different problem sizes
- */
-
-#include <iostream>
 #include "cute/layout.hpp"
 #include "cute/util/print.hpp"
+#include <iostream>
 
 using namespace cute;
 
 int main() {
-    std::cout << "=== Exercise 06: Hierarchical Layouts ===" << std::endl;
-    std::cout << std::endl;
+  std::cout << "=== Exercise 06: Hierarchical Layouts ===" << std::endl;
 
-    // TASK 1: Create a thread block layout (128 threads)
-    // Organize as 4 warps of 32 threads each
-    auto block_layout = make_layout(make_shape(Int<4>{}, Int<32>{}), GenRowMajor{});
-    
-    std::cout << "Task 1 - Thread Block Layout (4 warps x 32 threads):" << std::endl;
-    std::cout << "Block layout: " << block_layout << std::endl;
-    std::cout << "Shape: " << block_layout.shape() << std::endl;
-    std::cout << "Total threads: " << 4 * 32 << std::endl;
-    std::cout << std::endl;
+  // =========================================================================
+  // TASK 1: Thread Block Layout
+  // =========================================================================
+  // 4 warps x 32 lanes, row-major means warp_id is the slow dimension
+  // stride (32, 1): moving to next warp costs 32 offsets, next lane costs 1
+  auto block_layout = make_layout(make_shape(Int<4>{}, Int<32>{}),
+                                  make_stride(Int<32>{}, Int<1>{}));
 
-    // TASK 2: Create a warp layout within a thread block
-    // Each warp handles a portion of the computation
-    auto warp_layout = make_layout(make_shape(Int<4>{}, Int<1>{}), GenRowMajor{});
-    
-    std::cout << "Task 2 - Warp Layout (4 warps):" << std::endl;
-    std::cout << "Warp layout: " << warp_layout << std::endl;
-    std::cout << std::endl;
+  std::cout << "\n--- Task 1: Block Layout ---" << std::endl;
+  std::cout << "block_layout: ";
+  print(block_layout);
+  std::cout << std::endl;
+  // Manual: offset(warp=2, lane=5) = 2*32 + 5*1 = 69
+  std::cout << "Manual offset (warp=2, lane=5): 2*32 + 5*1 = 69" << std::endl;
+  std::cout << "CuTe offset   (warp=2, lane=5): " << block_layout(2, 5)
+            << std::endl;
+  // Both must print 69. If they don't, your stride is wrong.
 
-    // TASK 3: Create a thread-within-warp layout
-    // 32 threads per warp, organized for efficient memory access
-    auto thread_in_warp_layout = make_layout(make_shape(Int<32>{}, Int<1>{}), GenRowMajor{});
-    
-    std::cout << "Task 3 - Thread-within-Warp Layout (32 threads):" << std::endl;
-    std::cout << "Thread layout: " << thread_in_warp_layout << std::endl;
-    std::cout << std::endl;
+  // =========================================================================
+  // TASK 2: 2D Thread Layout
+  // =========================================================================
+  // (8 rows, 16 cols) of threads, row-major → stride (16, 1)
+  // Why (8,16) over (16,8)?
+  //   In row-major data, threads in the same row should span consecutive cols
+  //   so that a warp's 32 lanes read 32 consecutive floats → coalesced.
+  //   (8,16): 16 consecutive threads per row → one warp spans 2 rows of 16.
+  //   (16,8): only 8 consecutive threads per row → harder to coalesce a full
+  //   warp.
+  auto block_2d = make_layout(make_shape(Int<8>{}, Int<16>{}),
+                              make_stride(Int<16>{}, Int<1>{}));
 
-    // TASK 4: Create a 2D thread block layout (8x16 threads)
-    // Common configuration for matrix operations
-    auto block_2d_layout = make_layout(make_shape(Int<8>{}, Int<16>{}), GenRowMajor{});
-    
-    std::cout << "Task 4 - 2D Thread Block Layout (8x16):" << std::endl;
-    std::cout << "2D Block layout: " << block_2d_layout << std::endl;
-    std::cout << "Total threads: " << 8 * 16 << std::endl;
-    std::cout << std::endl;
+  std::cout << "\n--- Task 2: 2D Block Layout ---" << std::endl;
+  std::cout << "block_2d: ";
+  print(block_2d);
+  std::cout << std::endl;
+  // Manual: offset(3, 7) = 3*16 + 7*1 = 55
+  std::cout << "Manual offset (3,7): 3*16 + 7*1 = 55" << std::endl;
+  std::cout << "CuTe offset   (3,7): " << block_2d(3, 7) << std::endl;
 
-    // Visualize warp assignment in 2D block
-    std::cout << "=== Warp Assignment in 2D Block (8x16) ===" << std::endl;
-    std::cout << "Assuming 4 warps (warp 0-3), each with 32 threads:" << std::endl;
-    std::cout << std::endl;
-    
-    for (int i = 0; i < 8; ++i) {
-        for (int j = 0; j < 16; ++j) {
-            int thread_id = i * 16 + j;
-            int warp_id = thread_id / 32;
-            printf("W%d ", warp_id);
-        }
-        std::cout << std::endl;
+  // =========================================================================
+  // TASK 3: Warp/Lane Decomposition
+  // =========================================================================
+  // For row-major block_layout with stride (32,1):
+  //   block_layout(warp_id, lane_id) = warp_id*32 + lane_id = thread_id
+  // So the offset IS the thread_id. This is the definition of row-major here.
+  //
+  // If it were col-major (stride (1,4)):
+  //   block_layout(warp_id, lane_id) = warp_id*1 + lane_id*4
+  //   → offset != thread_id → warp lanes would NOT access contiguous memory
+
+  std::cout << "\n--- Task 3: Warp/Lane Decomposition ---" << std::endl;
+  bool all_match = true;
+  for (int tid = 0; tid < 128; ++tid) {
+    int warp_id = tid / 32; // which warp  (0..3)
+    int lane_id = tid % 32; // which lane within warp (0..31)
+    int offset = block_layout(warp_id, lane_id);
+    if (offset != tid) {
+      std::cout << "MISMATCH at tid=" << tid << " warp=" << warp_id
+                << " lane=" << lane_id << " offset=" << offset << std::endl;
+      all_match = false;
     }
-    std::cout << std::endl;
+  }
+  if (all_match)
+    std::cout << "All 128 threads verified: block_layout(warp,lane) == tid ✓"
+              << std::endl;
+  // KEY INSIGHT: row-major stride means flat thread_id == memory offset.
+  // This is exactly what you want for coalesced gmem reads:
+  // consecutive tids → consecutive offsets → one cache line transaction per
+  // warp.
 
-    // TASK 5: Create a hierarchical layout for matrix multiplication
-    // Thread block processes a tile, threads within block cooperate
-    std::cout << "=== Matrix Multiplication Hierarchy ===" << std::endl;
-    std::cout << "Problem: Multiply two 64x64 matrices" << std::endl;
-    std::cout << "Thread block size: 8x16 threads (128 threads)" << std::endl;
-    std::cout << "Each thread computes: 2x2 elements of output" << std::endl;
-    std::cout << std::endl;
+  // =========================================================================
+  // TASK 4: 3-Level Hierarchy — Grid -> Block -> Warp
+  // =========================================================================
+  //
+  // Output matrix: 64 x 64
+  // Block tile:    16 x 32  →  grid is (64/16) x (64/32) = 4 x 2 blocks
+  // Warp tile:      8 x 16  →  block has (16/8) x (32/16) = 2 x 2 warps
+  // Lane tile:      1 x  1  →  warp has 8x16=128 lanes...
+  //
+  // WAIT — pause here. 8*16 = 128 lanes per warp, but a warp has 32 lanes.
+  // This setup is geometrically wrong for a real kernel.
+  // We keep it to practice the layout math, but flag it:
+  // A correct warp tile for 32 lanes would be e.g. (4,8) or (2,16) or (1,32).
+  // We'll use (8,4) → 32 lanes as the corrected lane layout below.
+  //
+  // For the hierarchy exercise we keep the GIVEN numbers and just do the math:
 
-    // Layout for output tile per block (8x16 elements)
-    auto output_tile_layout = make_layout(make_shape(Int<8>{}, Int<16>{}), GenRowMajor{});
-    
-    std::cout << "Output tile per block (8x16):" << std::endl;
-    print(output_tile_layout);
-    std::cout << std::endl;
+  // Grid layout: 4 blocks in row dim, 2 blocks in col dim
+  // Strides in units of BLOCKS (logical, not elements):
+  //   moving to next block-row costs 1 block-row unit
+  //   moving to next block-col costs 1 block-col unit
+  // (We track block indices here, not element offsets)
+  auto grid_layout = make_layout(make_shape(Int<4>{}, Int<2>{}),
+                                 make_stride(Int<2>{}, Int<1>{}));
+  // Row-major over blocks: block(1,0) → index 2, block(0,1) → index 1
 
-    // Layout for thread's portion (2x2 elements)
-    auto thread_work_layout = make_layout(make_shape(Int<2>{}, Int<2>{}), GenRowMajor{});
-    
-    std::cout << "Each thread's work (2x2):" << std::endl;
-    print(thread_work_layout);
-    std::cout << std::endl;
+  // Warp layout within a block: 2 warps in row dim, 2 warps in col dim
+  auto warp_layout = make_layout(make_shape(Int<2>{}, Int<2>{}),
+                                 make_stride(Int<2>{}, Int<1>{}));
 
-    // CHALLENGE: Calculate thread-to-output mapping
-    std::cout << "=== Challenge: Thread to Output Mapping ===" << std::endl;
-    std::cout << "For a thread at position (ti, tj) in an 8x16 block:" << std::endl;
-    std::cout << "  Output row = ti * 2 to ti * 2 + 1" << std::endl;
-    std::cout << "  Output col = tj * 2 to tj * 2 + 1" << std::endl;
-    std::cout << std::endl;
+  // Lane layout within a warp: 8 x 4 = 32 lanes (corrected from 8x16)
+  // stride (4,1): next lane-row costs 4, next lane-col costs 1
+  auto lane_layout = make_layout(make_shape(Int<8>{}, Int<4>{}),
+                                 make_stride(Int<4>{}, Int<1>{}));
 
-    std::cout << "Example mappings:" << std::endl;
-    int thread_positions[][2] = {{0, 0}, {0, 1}, {1, 0}, {7, 15}};
-    for (auto& pos : thread_positions) {
-        int ti = pos[0];
-        int tj = pos[1];
-        std::cout << "  Thread (" << ti << "," << tj << ") computes output elements:" << std::endl;
-        std::cout << "    (" << (ti*2) << "," << (tj*2) << "), (" << (ti*2) << "," << (tj*2+1) << ")" << std::endl;
-        std::cout << "    (" << (ti*2+1) << "," << (tj*2) << "), (" << (ti*2+1) << "," << (tj*2+1) << ")" << std::endl;
-    }
-    std::cout << std::endl;
+  std::cout << "\n--- Task 4: 3-Level Hierarchy ---" << std::endl;
+  std::cout << "grid_layout : ";
+  print(grid_layout);
+  std::cout << std::endl;
+  std::cout << "warp_layout : ";
+  print(warp_layout);
+  std::cout << std::endl;
+  std::cout << "lane_layout : ";
+  print(lane_layout);
+  std::cout << std::endl;
 
-    // Visualize the full hierarchy
-    std::cout << "=== Full Hierarchy Visualization ===" << std::endl;
-    std::cout << "Level 1: Grid of thread blocks" << std::endl;
-    std::cout << "Level 2: Thread block (8x16 threads)" << std::endl;
-    std::cout << "Level 3: Each thread (2x2 elements)" << std::endl;
-    std::cout << std::endl;
+  // Manual global element calculation for block(1,1), warp(0,1), lane(5,3):
+  //   Global row = block_row * 16 + warp_row * 8 + lane_row * 1
+  //              = 1*16       + 0*8          + 5*1         = 21
+  //   Global col = block_col * 32 + warp_col * 16 + lane_col * 1
+  //              = 1*32       + 1*16          + 3*1         = 51
+  //   → This thread owns output element (21, 51)
+  std::cout << "block(1,1)+warp(0,1)+lane(5,3) → output element (21, 51)"
+            << std::endl;
 
-    std::cout << "64x64 Matrix divided among blocks (8x8 blocks):" << std::endl;
-    for (int bi = 0; bi < 8; ++bi) {
-        for (int bj = 0; bj < 8; ++bj) {
-            printf("B%2d ", bi * 8 + bj);
-        }
-        std::cout << std::endl;
-    }
-    std::cout << std::endl;
+  // =========================================================================
+  // TASK 5: Layout Composition — The CuTe Way
+  // =========================================================================
+  // Instead of 3 separate index calculations, compose into ONE layout.
+  // The shape encodes the hierarchy: ((warp_dim, lane_dim), (warp_dim,
+  // lane_dim))
+  //
+  // For the ROW dimension:
+  //   warp steps by 8 elements (warp tile height)
+  //   lane steps by 1 element  (lane tile height = 1)
+  //   → warp row stride in output matrix (row-major, 64 cols wide) = 8 * 64 =
+  //   512? NO — stride is in ELEMENTS of the output matrix, not tiles. warp_row
+  //   stride = warp_tile_rows * output_cols = 8 * 64 = 512  ← if we were
+  //   striding in flat memory. But here we think in 2D output coords: warp row
+  //   stride = 8  (each warp-row step moves 8 rows in output) lane row stride =
+  //   1  (each lane-row step moves 1 row in output)
+  //
+  // For the COL dimension:
+  //   warp col stride = 16 (each warp-col step moves 16 cols in output)
+  //   lane col stride = 1  (each lane-col step moves 1 col in output)
+  //
+  // Shape:  ((warp_rows=2, lane_rows=8), (warp_cols=2, lane_cols=4))
+  // Stride: ((warp_row_stride=8, lane_row_stride=1), (warp_col_stride=16,
+  // lane_col_stride=1))
 
-    std::cout << "=== Exercise Complete ===" << std::endl;
-    std::cout << "Key Learnings:" << std::endl;
-    std::cout << "1. Hierarchical layouts organize threads at multiple levels" << std::endl;
-    std::cout << "2. Thread blocks enable cooperation and synchronization" << std::endl;
-    std::cout << "3. Warps are the hardware execution unit (32 threads)" << std::endl;
-    std::cout << "4. Hierarchies enable scalable kernel design" << std::endl;
+  auto composed = make_layout(
+      make_shape(make_shape(Int<2>{}, Int<8>{}),  // row: 2 warps, 8 lanes each
+                 make_shape(Int<2>{}, Int<4>{})), // col: 2 warps, 4 lanes each
+      make_stride(
+          make_stride(Int<8>{}, Int<1>{}),  // row strides: warp=8, lane=1
+          make_stride(Int<16>{}, Int<1>{})) // col strides: warp=16, lane=1
+  );
 
-    return 0;
+  std::cout << "\n--- Task 5: Composed Layout ---" << std::endl;
+  std::cout << "composed: ";
+  print(composed);
+  std::cout << std::endl;
+
+  // Call with hierarchical coordinate: warp=(0,1), lane=(5,3)
+  // Expected: row = 0*8 + 5*1 = 5,  col = 1*16 + 3*1 = 19
+  // This is the INTRA-BLOCK offset, not global. To get global add block offset.
+  auto coord = make_coord(make_coord(0, 5),  // row: warp_row=0, lane_row=5
+                          make_coord(1, 3)); // col: warp_col=1, lane_col=3
+  std::cout << "composed(warp_row=0,lane_row=5 | warp_col=1,lane_col=3): "
+            << composed(coord) << std::endl;
+  // This prints a 2D coord (5, 19) — the element this thread owns within the
+  // block tile Add block(1,1) offset: global = (1*16 + 5, 1*32 + 19) = (21, 51)
+  // ✓ matches Task 4
+
+  // =========================================================================
+  // SYNTHESIS ANSWERS
+  // =========================================================================
+  //
+  // Q1: Col-major block_layout would have stride (1, 4) for shape (4,32).
+  //     block_layout(warp_id, lane_id) = warp_id*1 + lane_id*4 ≠ tid
+  //     Consecutive tids would map to non-consecutive offsets → uncoalesced.
+  //     Row-major wins for gmem coalescing: consecutive lanes = consecutive
+  //     addresses.
+  //
+  // Q2: Warp tile (8,16) = 128 elements ≠ 32 lanes. Fixed options:
+  //     (1,32): all 32 lanes in one row → best col coalescing, poor row reuse
+  //     (2,16): 2 rows of 16 → balanced, common in practice
+  //     (4,8) : 4 rows of 8  → more row reuse, less col coalescing
+  //     (8,4) : used above   → max row reuse, minimal col coalescing
+  //     Choice depends on whether your kernel is bandwidth or compute bound.
+  //
+  // Q3: sm_89 MMA atom shape is (16,8,16) → output tile per warp is (16,8).
+  //     Your warp layout must decompose into 16 rows x 8 cols = 128... still
+  //     not 32. Reality: MMA operates on REGISTER tiles, not one element per
+  //     lane. Each lane holds multiple accumulators. This is Module 04
+  //     territory. The key bridge: your composed layout's lane dimension will
+  //     be replaced by a register-level layout inside the MMA atom abstraction.
+
+  std::cout << "\n=== Exercise Complete ===" << std::endl;
+  return 0;
 }

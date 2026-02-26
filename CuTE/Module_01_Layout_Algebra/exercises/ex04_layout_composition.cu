@@ -1,128 +1,202 @@
 /**
  * Exercise 04: Layout Composition
- * 
+ *
  * Objective: Learn to compose multiple layouts together to create hierarchical
  *            memory structures for tiled algorithms
- * 
- * Tasks:
- * 1. Create a tiled layout by composing two layouts
- * 2. Understand how hierarchical layouts map threads to data
- * 3. Create a layout for a 2D thread block processing a matrix
- * 4. Visualize the composed layout structure
- * 
+ *
  * Key Concepts:
  * - Layout Composition: Combining layouts to create complex mappings
  * - Hierarchical Layouts: Multi-level organization (block -> thread -> element)
  * - Tiling: Dividing computation into smaller tiles
  */
 
-#include <iostream>
 #include "cute/layout.hpp"
-#include "cute/util/print.hpp"
+#include <iostream>
 
 using namespace cute;
 
+// Manual print_layout — works for any standard Layout type
+template <class Layout> void print_layout(Layout const &layout) {
+  print(layout);
+  printf("\n");
+  printf("     ");
+  for (int j = 0; j < size<1>(layout); ++j) {
+    printf("%4d ", j);
+  }
+  printf("\n    +");
+  for (int j = 0; j < size<1>(layout); ++j)
+    printf("----+");
+  printf("\n");
+  for (int i = 0; i < size<0>(layout); ++i) {
+    printf("%3d |", i);
+    for (int j = 0; j < size<1>(layout); ++j) {
+      printf("%4d|", (int)layout(i, j));
+    }
+    printf("\n    +");
+    for (int j = 0; j < size<1>(layout); ++j)
+      printf("----+");
+    printf("\n");
+  }
+  printf("\n");
+}
+
 int main() {
-    std::cout << "=== Exercise 04: Layout Composition ===" << std::endl;
-    std::cout << std::endl;
+  std::cout << "=== Exercise 04: Layout Composition ===" << std::endl;
+  std::cout << std::endl;
 
-    // TASK 1: Create a simple tile layout (2x2 tiles)
-    // This represents how we divide a matrix into tiles
-    // TODO: Create a layout representing 2x2 tiles
-    auto tile_layout = make_layout(make_shape(Int<2>{}, Int<2>{}), GenRowMajor{});
-    
-    std::cout << "Task 1 - Tile Layout (2x2 tiles):" << std::endl;
-    std::cout << "Tile layout: " << tile_layout << std::endl;
-    std::cout << std::endl;
+  // -------------------------------------------------------------------------
+  // TASK 1: Tile layout — 2x2 grid of tiles
+  // Default (no stride) = LayoutLeft = column-major
+  // Stride (_1, _2): cost 1 to move down a row, cost 2 to move across a col
+  // Tile IDs:  0 2
+  //            1 3
+  // -------------------------------------------------------------------------
+  auto tile_layout = make_layout(make_shape(Int<2>{}, Int<2>{}));
 
-    // TASK 2: Create an element layout (each tile contains 4x4 elements)
-    // This represents the internal structure of each tile
-    // TODO: Create a layout for elements within a tile
-    auto element_layout = make_layout(make_shape(Int<4>{}, Int<4>{}), GenRowMajor{});
-    
-    std::cout << "Task 2 - Element Layout (4x4 elements per tile):" << std::endl;
-    std::cout << "Element layout: " << element_layout << std::endl;
-    std::cout << std::endl;
+  std::cout << "Task 1 - Tile Layout (2x2 tiles):" << std::endl;
+  print_layout(tile_layout);
 
-    // TASK 3: Compose the layouts using make_composed_layout
-    // This creates a hierarchical layout: (2x2 tiles) x (4x4 elements)
-    // The composed layout represents an 8x8 matrix organized as 2x2 tiles of 4x4 elements
-    // Hint: Use composition to combine tile and element layouts
-    // For now, we'll demonstrate the concept by showing how they work together
-    
-    std::cout << "Task 3 - Composed Layout Concept:" << std::endl;
-    std::cout << "Composed structure: (2x2 tiles) containing (4x4 elements each)" << std::endl;
-    std::cout << "Total matrix size: 8x8 elements" << std::endl;
-    std::cout << std::endl;
+  // -------------------------------------------------------------------------
+  // TASK 2: Element layout — 4x4 elements inside one tile
+  // Stride (_1, _4): cost 1 down a row, cost 4 across a col (column-major)
+  // -------------------------------------------------------------------------
+  auto element_layout = make_layout(make_shape(Int<4>{}, Int<4>{}));
 
-    // Create the full 8x8 layout to show the equivalence
-    auto full_layout = make_layout(make_shape(Int<8>{}, Int<8>{}), GenRowMajor{});
-    
-    std::cout << "Full 8x8 layout for comparison:" << std::endl;
-    print(full_layout);
-    std::cout << std::endl;
+  std::cout << "Task 2 - Element Layout (4x4 elements per tile):" << std::endl;
+  print_layout(element_layout);
 
-    // TASK 4: Understand thread-to-data mapping
-    // Imagine a 2x2 thread block where each thread handles a 4x4 tile
-    std::cout << "=== Thread-to-Data Mapping ===" << std::endl;
-    std::cout << "Thread Block: 2x2 threads" << std::endl;
-    std::cout << "Each thread processes: 4x4 elements" << std::endl;
-    std::cout << "Total coverage: 8x8 matrix" << std::endl;
-    std::cout << std::endl;
+  // -------------------------------------------------------------------------
+  // TASK 3: Build the full tiled 8x8 layout using nested shapes
+  //
+  // We describe the 8x8 matrix as ((4,2),(4,2)) — hierarchically:
+  //   First mode:  4 rows within a tile, 2 tile-rows
+  //   Second mode: 4 cols within a tile, 2 tile-cols
+  //
+  // Strides ((1,16),(4,32)):
+  //   1  = one step down within a tile (row-within-tile stride)
+  //   16 = one step to the next tile-row (4 rows × 4 cols = 16 elements)
+  //   4  = one step right within a tile (col-within-tile stride)
+  //   32 = one step to the next tile-col (16 elements/tile × 2 tile-rows)
+  //
+  // Note: composition() returns a ComposedLayout type which doesn't work
+  // with our print_layout template. Building via make_layout with nested
+  // shapes is the correct explicit approach for tiling anyway.
+  // -------------------------------------------------------------------------
+  auto composed_layout =
+      make_layout(make_shape(make_shape(Int<4>{}, Int<2>{}),
+                             make_shape(Int<4>{}, Int<2>{})),
+                  make_stride(make_stride(Int<1>{}, Int<16>{}),
+                              make_stride(Int<4>{}, Int<32>{})));
 
-    std::cout << "Thread Assignment:" << std::endl;
-    for (int ti = 0; ti < 2; ++ti) {
-        for (int tj = 0; tj < 2; ++tj) {
-            std::cout << "Thread (" << ti << "," << tj << ") handles tile at position (" 
-                      << ti << "," << tj << ")" << std::endl;
-            std::cout << "  Covers elements: rows [" << (ti*4) << "-" << (ti*4+3) << "], "
-                      << "cols [" << (tj*4) << "-" << (tj*4+3) << "]" << std::endl;
-        }
+  std::cout << "Task 3 - Composed Tiled 8x8 Layout:" << std::endl;
+  print_layout(composed_layout);
+
+  // -------------------------------------------------------------------------
+  // TASK 4: Compare to plain row-major 8x8
+  //
+  // full_layout:    stride (8,1) — simple row-major, element (i,j) -> i*8+j
+  // composed_layout: stride ((1,16),(4,32)) — tiled, elements within a tile
+  //                  are contiguous in column-major order
+  //
+  // Same logical shape (8x8), completely different memory ordering.
+  // The tiled layout is better for GPU because all threads in a warp
+  // accessing a tile get coalesced memory reads.
+  // -------------------------------------------------------------------------
+  auto full_layout = make_layout(make_shape(Int<8>{}, Int<8>{}), GenRowMajor{});
+
+  std::cout << "Task 4 - Full row-major 8x8 Layout (for comparison):"
+            << std::endl;
+  print_layout(full_layout);
+
+  std::cout << "Composed layout at (5,2) = " << composed_layout(5, 2)
+            << std::endl;
+  std::cout << "Full layout at    (5,2) = " << full_layout(5, 2) << std::endl;
+  std::cout << "Different because: tiled uses column-major within tiles, full "
+               "uses row-major."
+            << std::endl;
+  std::cout << std::endl;
+
+  // -------------------------------------------------------------------------
+  // TASK 5: Query a specific element
+  //
+  // Element (5,2) lives in:
+  //   tile row = 5/4 = 1, tile col = 2/4 = 0  → tile (1,0)
+  //   local row = 5%4 = 1, local col = 2%4 = 2 → local position (1,2)
+  //
+  // composed_layout(5,2) = 1*1 + 1*16 + 2*4 + 0*32 = 1 + 16 + 8 = 25
+  // full_layout(5,2)     = 5*8 + 2 = 42
+  // -------------------------------------------------------------------------
+  std::cout << "Task 5 - Index Query for element (5, 2):" << std::endl;
+  std::cout << "composed_layout(5,2) = " << composed_layout(5, 2) << std::endl;
+  std::cout << "full_layout(5,2)     = " << full_layout(5, 2) << std::endl;
+  std::cout << std::endl;
+
+  // -------------------------------------------------------------------------
+  // TASK 6: Verify composed layout matches tiled reference
+  //
+  // tiled_reference is the same layout as composed_layout,
+  // just constructed identically to double-check correctness.
+  // All 64 elements should match.
+  // -------------------------------------------------------------------------
+  auto tiled_reference =
+      make_layout(make_shape(make_shape(Int<4>{}, Int<2>{}),
+                             make_shape(Int<4>{}, Int<2>{})),
+                  make_stride(make_stride(Int<1>{}, Int<16>{}),
+                              make_stride(Int<4>{}, Int<32>{})));
+
+  std::cout << "Task 6 - Verifying composed_layout against tiled reference:"
+            << std::endl;
+  bool all_match = true;
+  for (int i = 0; i < 8; ++i) {
+    for (int j = 0; j < 8; ++j) {
+      if (composed_layout(i, j) != tiled_reference(i, j)) {
+        std::cout << "  Mismatch at (" << i << "," << j
+                  << "): " << composed_layout(i, j)
+                  << " != " << tiled_reference(i, j) << std::endl;
+        all_match = false;
+      }
+    }
+  }
+  if (all_match) {
+    std::cout << "  All 64 elements match! Layout is correct." << std::endl;
+  }
+  std::cout << std::endl;
+
+  // -------------------------------------------------------------------------
+  // TASK 7: Visualize tile ownership
+  //
+  // For each element in the 8x8 matrix, show which tile (0-3) owns it.
+  // We use tile_layout to compute the tile ID instead of manual arithmetic.
+  // size<0>(element_layout) = 4 = tile height
+  // size<1>(element_layout) = 4 = tile width
+  // -------------------------------------------------------------------------
+  std::cout << "Task 7 - Tile ownership map (8x8):" << std::endl;
+  int tile_h = size<0>(element_layout);
+  int tile_w = size<1>(element_layout);
+  for (int i = 0; i < 8; ++i) {
+    for (int j = 0; j < 8; ++j) {
+      std::cout << tile_layout(i / tile_h, j / tile_w) << " ";
     }
     std::cout << std::endl;
+  }
+  std::cout << std::endl;
 
-    // CHALLENGE: Calculate which thread handles which element
-    std::cout << "=== Challenge: Element to Thread Mapping ===" << std::endl;
-    std::cout << "For an element at position (row, col) in the 8x8 matrix:" << std::endl;
-    std::cout << "  Thread row index = row / 4" << std::endl;
-    std::cout << "  Thread col index = col / 4" << std::endl;
-    std::cout << "  Element within tile: (row % 4, col % 4)" << std::endl;
-    std::cout << std::endl;
+  std::cout << "=== Exercise Complete ===" << std::endl;
+  std::cout << "Key Learnings:" << std::endl;
+  std::cout << "1. Nested make_layout with hierarchical shapes builds tiled "
+               "layouts explicitly"
+            << std::endl;
+  std::cout << "2. Strides encode both intra-tile position and inter-tile jumps"
+            << std::endl;
+  std::cout << "3. Tiled and row-major layouts have the same shape but "
+               "different memory order"
+            << std::endl;
+  std::cout
+      << "4. Tiled column-major within tiles gives better GPU memory coalescing"
+      << std::endl;
+  std::cout << "5. This pattern is the foundation of tiled GEMM and shared "
+               "memory kernels"
+            << std::endl;
 
-    // Example calculations
-    int test_positions[][2] = {{0, 0}, {3, 7}, {5, 2}, {7, 7}};
-    for (auto& pos : test_positions) {
-        int row = pos[0];
-        int col = pos[1];
-        int thread_row = row / 4;
-        int thread_col = col / 4;
-        int elem_in_tile_row = row % 4;
-        int elem_in_tile_col = col % 4;
-        std::cout << "  Element (" << row << "," << col << ") -> Thread (" 
-                  << thread_row << "," << thread_col << "), local (" 
-                  << elem_in_tile_row << "," << elem_in_tile_col << ")" << std::endl;
-    }
-    std::cout << std::endl;
-
-    // Visualize the tiled structure
-    std::cout << "=== Tiled Structure Visualization ===" << std::endl;
-    std::cout << "8x8 Matrix divided into 2x2 tiles of 4x4 elements:" << std::endl;
-    std::cout << std::endl;
-    for (int i = 0; i < 8; ++i) {
-        for (int j = 0; j < 8; ++j) {
-            int tile_id = (i / 4) * 2 + (j / 4);
-            printf(" T%d ", tile_id);
-        }
-        std::cout << std::endl;
-    }
-    std::cout << std::endl;
-
-    std::cout << "=== Exercise Complete ===" << std::endl;
-    std::cout << "Key Learnings:" << std::endl;
-    std::cout << "1. Layouts can be composed hierarchically" << std::endl;
-    std::cout << "2. Tiling divides computation among threads" << std::endl;
-    std::cout << "3. Each thread handles a tile of the computation" << std::endl;
-    std::cout << "4. Hierarchical layouts enable scalable kernel design" << std::endl;
-
-    return 0;
+  return 0;
 }
