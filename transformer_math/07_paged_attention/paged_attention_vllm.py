@@ -169,7 +169,8 @@ print(f"Total KV cache: {total_memory / 1e6:.1f} MB")
 
 # Compare with naive allocation
 print(f"\nComparison with naive allocation (S_max=4096):")
-naive_memory = NUM_LAYERS * 2 * 4096 * NUM_KV_HEADS * HEAD_DIM * bytes_per_block
+bytes_per_element = 2  # FP16
+naive_memory = NUM_LAYERS * 2 * 4096 * NUM_KV_HEADS * HEAD_DIM * bytes_per_element
 print(f"  Naive: {naive_memory / 1e6:.1f} MB per sequence")
 print(f"  PagedAttention: {total_memory / 1e6:.1f} MB (shared pool)")
 

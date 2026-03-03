@@ -82,7 +82,12 @@ def simulate_flash_attn_func(q, k, v, dropout_p=0.0, causal=True,
     if softmax_scale is None:
         softmax_scale = 1.0 / np.sqrt(d_h)
     
-    scores = torch.matmul(q, k.transpose(-2, -1)) * softmax_scale
+    # Cast to float32 for numerical stability (like HF)
+    q_fp32 = q.float()
+    k_fp32 = k.float()
+    v_fp32 = v.float()
+    
+    scores = torch.matmul(q_fp32, k_fp32.transpose(-2, -1)) * softmax_scale
     
     # Causal mask
     if causal:
@@ -93,9 +98,10 @@ def simulate_flash_attn_func(q, k, v, dropout_p=0.0, causal=True,
     attn = torch.softmax(scores, dim=-1)
     
     # Output
-    output = torch.matmul(attn, v)
+    output = torch.matmul(attn, v_fp32)
     
-    return output
+    # Cast back to original dtype
+    return output.to(q.dtype)
 
 # ============================================================
 # PART 3: Example Usage

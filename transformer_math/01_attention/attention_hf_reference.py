@@ -237,12 +237,19 @@ print("\n" + "=" * 70)
 print("MEMORY USAGE DURING ATTENTION FORWARD")
 print("=" * 70)
 
+# Move model to same device as hidden_states
+device = hidden_states.device
+q_proj = q_proj.to(device)
+k_proj = k_proj.to(device)
+v_proj = v_proj.to(device)
+o_proj = o_proj.to(device)
+
 if torch.cuda.is_available():
     torch.cuda.empty_cache()
     mem_before = torch.cuda.memory_allocated()
     
     # Run attention
-    _ = q_proj(hidden_states.cuda())
+    _ = q_proj(hidden_states)
     mem_q = torch.cuda.memory_allocated() - mem_before
     
     print(f"Q projection allocation: {mem_q / 1e6:.1f} MB")
