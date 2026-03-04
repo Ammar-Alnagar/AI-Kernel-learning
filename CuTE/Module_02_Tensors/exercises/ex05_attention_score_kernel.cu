@@ -18,7 +18,7 @@ constexpr int ELEMS_PER_THREAD = HEAD_DIM / WARP_SIZE;     // 4
 
 __global__ void attention_score_kernel(const float *__restrict__ Q_data,
                                        const float *__restrict__ K_data,
-                                       float *__restrict__ scores,
+                                       b float *__restrict__ scores,
                                        float scale) {
   auto Q =
       make_tensor(make_gmem_ptr(Q_data),
@@ -84,7 +84,7 @@ int main() {
   printf("=== Attention Score Kernel ===\n");
   printf("GPU: %s\n", prop.name);
   printf("SMs: %d | Peak BW: %.1f GB/s\n\n", prop.multiProcessorCount,
-         (prop.memoryBusWidth / 8.0f * prop.memoryClockRate * 2.0f) / 1e6f);
+         272.0f / 1e6f);
 
   const int Q_SIZE = NUM_QUERIES * HEAD_DIM;
   const int K_SIZE = HEAD_DIM;
@@ -159,8 +159,7 @@ int main() {
 
   float bytes = (Q_SIZE + K_SIZE + S_SIZE) * sizeof(float);
   float flops = NUM_QUERIES * HEAD_DIM * 2.0f;
-  float peak_bw =
-      (prop.memoryBusWidth / 8.0f * prop.memoryClockRate * 2.0f) / 1e6f;
+  float peak_bw = 272.0f / 1e6f;
   float achieved_bw = (bytes / 1e9f) / (avg_us / 1e6f);
   float bw_util = (achieved_bw / peak_bw) * 100.0f;
 
