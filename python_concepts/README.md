@@ -1,6 +1,6 @@
 # Python for ML Inference & Kernel Engineering
 
-Speedrun Python for GPU kernel work — nothing more.
+Speedrun Python for GPU kernel work and systems-level programming — nothing more.
 
 ## Prerequisites
 
@@ -9,16 +9,27 @@ Speedrun Python for GPU kernel work — nothing more.
 
 ## What's Covered
 
-| Module | Topic | Kernel Engineering Relevance |
-|--------|-------|------------------------------|
-| 01 | Functions & Decorators | `@torch.compile`, `@cutlass.jit`, higher-order kernel launchers |
-| 02 | Comprehensions | Building kernel config grids, tensor shape tuples |
-| 03 | Dataclasses | Kernel launch configs, tensor metadata structs |
-| 04 | Context Managers | CUDA streams, `torch.cuda.device`, resource cleanup |
-| 05 | Type Hints | Tensor shape annotations, IDE support for kernel APIs |
-| 06 | Tensor Indexing | Attention masks, KV cache slicing, broadcast dims |
-| 07 | CLI & I/O | Benchmark scripts, path handling for model weights |
-| 08 | Timing & Benchmarking | CUDA events, `ncu` profiling, benchmark harnesses |
+### Core Python for Kernel Engineering
+
+| Module | Topic | Kernel Engineering Relevance | Time |
+|--------|-------|------------------------------|------|
+| 01 | Functions & Decorators | `@torch.compile`, `@cutlass.jit`, higher-order kernel launchers | 30 min |
+| 02 | Comprehensions | Building kernel config grids, tensor shape tuples | 20 min |
+| 03 | Dataclasses | Kernel launch configs, tensor metadata structs | 20 min |
+| 04 | Context Managers | CUDA streams, `torch.cuda.device`, resource cleanup | 20 min |
+| 05 | Type Hints | Tensor shape annotations, IDE support for kernel APIs | 20 min |
+| 06 | Tensor Indexing | Attention masks, KV cache slicing, broadcast dims | 40 min |
+| 07 | CLI & I/O | Benchmark scripts, path handling for model weights | 20 min |
+| 08 | Timing & Benchmarking | CUDA events, `ncu` profiling, benchmark harnesses | 30 min |
+
+### Systems Python (Production-Ready Code)
+
+| Module | Topic | Systems Engineering Relevance | Time |
+|--------|-------|------------------------------|------|
+| 09 | Async Basics | Concurrent I/O, async inference servers, rate limiting | 30 min |
+| 10 | Error Handling | OOM recovery, retry logic, custom exceptions | 30 min |
+| 11 | Logging & Debugging | Structured logs, pdb, production observability | 30 min |
+| 12 | Testing | pytest, kernel correctness, mocking CUDA | 30 min |
 
 ## Capstone
 
@@ -37,7 +48,7 @@ python setup.py  # Validates env, prints Python version + torch info
 
 ## Workflow
 
-1. Complete each `_FILL_IN.py` exercise (10–20 min each)
+1. Complete each `_FILL_IN.py` exercise (10–30 min each)
 2. Predict behavior before running
 3. Answer checkpoint questions after running
 4. Check `solutions/` only if stuck
@@ -46,5 +57,4 @@ python setup.py  # Validates env, prints Python version + torch info
 
 - No OOP. No inheritance. No `__init__`. No class methods.
 - Only `@dataclass` as plain structs.
-- No asyncio/threading/multiprocessing internals.
-- Every exercise ties to real kernel work.
+- Every exercise ties to real kernel/systems work.
