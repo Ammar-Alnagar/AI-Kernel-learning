@@ -1,5 +1,5 @@
 use candle_core::{DType, Device, IndexOp, Result, Tensor};
-use candle_nn::{loss, ops, optim::AdamW, Linear, Module, VarBuilder, VarMap};
+use candle_nn::{loss, ops, optim::AdamW, Linear, Module, Optimizer, VarBuilder, VarMap};
 
 struct Mlp { l1: Linear, l2: Linear }
 impl Mlp {

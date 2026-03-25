@@ -1,5 +1,5 @@
 use candle_core::{DType, Device, Result, Tensor};
-use candle_nn::{loss, optim::AdamW, Module, VarBuilder, VarMap};
+use candle_nn::{loss, optim::AdamW, Module, Optimizer, VarBuilder, VarMap};
 
 fn main() -> Result<()> {
     let dev = Device::Cpu;

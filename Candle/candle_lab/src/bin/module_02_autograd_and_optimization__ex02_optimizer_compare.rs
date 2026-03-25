@@ -1,5 +1,5 @@
 use candle_core::{DType, Device, Result, Tensor};
-use candle_nn::{loss, optim, Module, VarBuilder, VarMap};
+use candle_nn::{loss, optim, Module, Optimizer, VarBuilder, VarMap};
 
 fn run_adamw(x: &Tensor, y: &Tensor, dev: &Device) -> Result<f32> {
     let mut vm = VarMap::new();

@@ -6,7 +6,7 @@ fn main() -> Result<()> {
     let x = Tensor::randn(0f32, 1f32, (3, 4), &dev)?;
     let bias = Tensor::zeros((4,), DType::F32, &dev)?;
 
-    let y = (&x + &bias)?;
+    let y = x.broadcast_add(&bias)?;
     let mean = y.mean_keepdim(1)?;
 
     let ex2 = y.sqr()?.mean_keepdim(1)?;

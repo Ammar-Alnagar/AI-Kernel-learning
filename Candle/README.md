@@ -44,9 +44,19 @@ Candle/
 
 ```bash
 cd Candle
-./tools/bootstrap_candle_lab.sh
 cd candle_lab
-cargo run --bin ex01_tensor_basics_fill_in
+./run_solution.sh module_01_tensor_fundamentals__ex01_tensor_basics
 ```
 
-The bootstrap script creates a local Rust crate (`Candle/candle_lab`) where you can copy/paste or include exercise code while keeping this tutorial directory clean.
+`Candle/candle_lab` is preloaded with all module/project bins.
+
+- `BIN_LIST_ALL.txt`: all bins (`*_fill_in` + solutions)
+- `BIN_LIST_SOLUTIONS.txt`: runnable reference bins only
+
+To regenerate `candle_lab` from module files:
+
+```bash
+cd Candle
+rm -rf candle_lab
+./tools/bootstrap_candle_lab.sh
+```
