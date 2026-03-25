@@ -44,3 +44,5 @@ venv
 
 # Build directories
 build/
+target/
+**/target/
