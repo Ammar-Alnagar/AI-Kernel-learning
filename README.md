@@ -4,7 +4,7 @@ A comprehensive repository dedicated to mastering GPU kernel programming, high-p
 
 ---
 
-## 📂 Repository Structure & Module Deep Dive
+##  Repository Structure & Module Deep Dive
 
 ### 1. [CUDA Learning Path](./Cuda/) (Fundamentals to Mastery)
 *Comprehensive curriculum covering the entire CUDA ecosystem, from thread hierarchy to hardware-specific optimizations.*
@@ -53,13 +53,13 @@ A comprehensive repository dedicated to mastering GPU kernel programming, high-p
 
 ---
 
-## 🛠️ Tooling & Environment
+## Tooling & Environment
 *   **Compilers:** `nvcc` (CUDA Toolkit 12.x+), `clang++` (C++17/20).
 *   **Libraries:** CUTLASS 3.x, CuTE, NCCL, Triton.
 *   **Profiling:** NVIDIA Nsight Compute & Nsight Systems.
 *   **Hardware Target:** Optimized for NVIDIA Ampere (SM80), Ada Lovelace (SM89), and Hopper (SM90).
 
-## 📖 Getting Started
+## Getting Started
 1.  Read **[LEARNING_PATH.md](./LEARNING_PATH.md)** to choose your entry point.
 2.  Follow the **[Transformer Math](./transformer_math/README.md)** sequence to understand the implementation depth.
 3.  Transition to **[CuTE](./CuTE/README.md)** or **[Triton](./Triton/README.md)** for hands-on kernel development.
