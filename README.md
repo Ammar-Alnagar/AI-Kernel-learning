@@ -60,7 +60,12 @@ A comprehensive repository dedicated to mastering GPU kernel programming, high-p
 - **[GPU Sorting](./GPU-DSA/):** Radix Sort and Bitonic Sort kernel implementations.
 - **[Advanced Kernels](./GPU-DSA/):** Fused LayerNorm, Online Softmax, Paged Attention (vLLM style), and Double Buffering patterns.
 
-### 9. [Supporting Languages & Ecosystems](./)
+### 9. [Candle Learning Path](./Candle/) (Rust ML + Inference Optimization)
+*A comprehensive, fill-in-the-code curriculum for Hugging Face Candle, progressing from tensor fundamentals to CUDA/Tensor Core-aware optimization and mini-LLM inference design.*
+- **[Candle Workbook](./Candle/README.md):** Guided exercises covering tensors, autograd, model building, transformer blocks, KV cache, quantization, and profiling-driven optimization.
+- **[Advanced Performance Track](./Candle/README.md):** Tensor Core-aware GEMM benchmarking, dtype strategy (`F16`/`BF16`), memory-layout considerations, and Nsight-based bottleneck analysis.
+
+### 10. [Supporting Languages & Ecosystems](./)
 - **[Host-Side Programming](./Concurrency/):** C++ multithreading, synchronization primitives, and driving asynchronous CUDA workloads.
 - **[Python Skills](./python_crashcourse/):** A crash course and conceptual deep-dives into Python for HPC.
 - **[Mojo Language](./MojoLang/):** Exploratory projects using Mojo, a new language designed for high-performance AI programming.
@@ -84,3 +89,4 @@ A comprehensive repository dedicated to mastering GPU kernel programming, high-p
 2.  For a Python-first approach, start with **[Python Skills](./python_crashcourse/)**, then dive into the **[Triton Learning Path](./Triton/)**.
 3.  Consult the **[Transformer Math](./transformer_math/)** modules to understand the theory behind the kernels you are building.
 4.  Use the **[Profiling](./Profiling/)** tools continuously to measure your progress and validate optimization impact.
+5.  For Rust-native model development and inference, follow the **[Candle Learning Path](./Candle/README.md)**.
