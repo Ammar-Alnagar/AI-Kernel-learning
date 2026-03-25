@@ -1,0 +1,72 @@
+[book]
+authors = ["Modular <hello@modular.com>"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Mojo 🔥 GPU Puzzles"
+version = "1.0.0"
+
+[output.html]
+additional-css = [
+    "theme/css/custom.css",
+    "theme/css/highlight.css",
+    "theme/css/tabs.css",
+]
+additional-js = [
+    "theme/mojolang.js",
+    "theme/sidebar.js",
+    "theme/solution.js",
+    "theme/init-amplitude.js",
+    "theme/tabs.js",
+]
+default-theme = "light"
+preferred-dark-theme = "ayu"
+copy-fonts = true
+favicon_svg=true
+smart-punctuation = true
+no-section-label = true
+git-repository-url = "https://github.com/modular/mojo-gpu-puzzles"
+mathjax-support = true
+theme-switcher = true
+no-theme-selection = false
+draft = false
+
+[output.html.highlight]
+enable = true
+
+[output.html.print]
+enable = true
+
+[output.html.search]
+enable = true
+limit-results = 30
+teaser-word-count = 30
+use-boolean-and = true
+boost-title = 2
+boost-hierarchy = 1
+boost-paragraph = 1
+expand = true
+heading-split-level = 3
+
+[output.html.fold]
+enable = false
+
+[output.html.math]
+mode = "katex"
+
+[build]
+build-dir = "html"
+create-missing = true
+extra-files = ["logo", "puzzles_images"]
+
+[preprocessor.index]
+index = false
+
+[preprocessor.links]
+# Enables use of {{#include file.md}} to include other files
+renderers = ["html"]
+some-attribute = "value"
+
+[preprocessor.youtube]
+# Custom preprocessor for YouTube embeds
+command = "python ../scripts/youtube_preprocessor.py"

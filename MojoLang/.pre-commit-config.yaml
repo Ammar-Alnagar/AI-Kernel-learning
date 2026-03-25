@@ -1,0 +1,15 @@
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v3.2.0
+    hooks:
+    -   id: trailing-whitespace
+    -   id: end-of-file-fixer
+    -   id: check-yaml
+
+-   repo: local
+    hooks:
+    -   id: mojo-format
+        name: Mojo Format
+        entry: pixi run format
+        language: system
+        pass_filenames: false

@@ -1,0 +1,5 @@
+/* Base dark theme - minimal since most styles are in custom.css */
+:root {
+    --bg: #020c13;
+    --fg: #ffffff;
+}
