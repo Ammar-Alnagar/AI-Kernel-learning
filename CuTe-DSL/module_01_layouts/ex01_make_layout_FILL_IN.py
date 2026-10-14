@@ -19,14 +19,27 @@ LEARNING OBJECTIVE:
   - Verify layout mapping matches expected row-major behavior
 
 REQUIRED READING (do this before writing any code):
-  - CUTLASS docs: https://nvidia.github.io/cutlass-dsl/cute/layout.html
-  - Example to study: cutlass/examples/python/CuTeDSL/layout_basics.py
+  - CUTLASS Python DSL layout docs: https://nvidia.github.io/cutlass-dsl/
+  - This curriculum's API map: ../API_MIGRATION_4x.md
+
+API NOTE (4.8):
+  Layouts build MLIR, so `cute.make_layout` may only be called from inside a
+  `@cute.kernel` or `@cute.jit` function — never from plain Python.
+  A `@cute.jit` host function cannot write to a tensor, so the store below
+  happens in the kernel, guarded by `tidx == 0`.
 """
+
+import pathlib
+import sys
+
+import torch
 
 import cutlass
 import cutlass.cute as cute
 from cutlass.cute.runtime import from_dlpack
-import torch
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+import cutedsl_utils as utils  # noqa: E402
 
 # ─────────────────────────────────────────────
 # PREDICT BEFORE RUNNING
@@ -48,98 +61,102 @@ import torch
 # ─────────────────────────────────────────────
 # SETUP
 # ─────────────────────────────────────────────
-# Define shape and stride for a row-major (128, 64) matrix
+# Shape and stride for a row-major (128, 64) matrix.
+# Module-level Python ints are captured as compile-time constants by the DSL.
 M, N = 128, 64
 
 
 # ─────────────────────────────────────────────
 # KERNEL
 # ─────────────────────────────────────────────
-@cutlass.jit
-def kernel_layout_query(
-    layout_result: cute.Tensor,
-):
+@cute.kernel
+def kernel_layout_query(layout_result: cute.Tensor):
     """
     Query layout properties and store results in a tensor.
-    
+
     FILL IN [EASY]: Create the layout and compute indices for test coordinates.
-    
+
     HINT: Use cute.make_layout(shape_tuple, stride=stride_tuple)
     """
     # --- Step 1: Create the layout ---
     # TODO: Create a row-major layout with shape (M, N) = (128, 64)
     #       and stride (N, 1) = (64, 1)
     # HINT: layout = cute.make_layout((M, N), stride=(N, 1))
-    
+
     # --- Step 2: Compute linear index for (5, 10) ---
-    # TODO: Use layout(coord) to get the linear index
+    # TODO: Use cute.crd2idx(coord, layout) to get the linear index
     #       Store result in layout_result[0]
-    # HINT: index = layout((5, 10))
-    
+    # HINT: index = cute.crd2idx((5, 10), layout)
+    #       (note the argument order: coord first, layout second)
+
     # --- Step 3: Compute linear index for (32, 0) ---
     # TODO: Store result in layout_result[1]
-    
+
     # --- Step 4: Get total size (cosize) ---
-    # TODO: Use cute.cosize(layout) and get its size
+    # TODO: Use cute.cosize(layout) to get the number of elements
     #       Store result in layout_result[2]
-    
-    pass
+
+    # NOTE: every store must be guarded so only one thread writes.
+    #       Leave this guard in place while you fill in the steps above.
+    tidx, _, _ = cute.arch.thread_idx()
+    if tidx == 0:
+        pass
 
 
 # ─────────────────────────────────────────────
 # HOST LAUNCH
 # ─────────────────────────────────────────────
+@cute.jit
+def launch(layout_result: cute.Tensor):
+    """
+    Launch configuration lives in the host function, not in the kernel.
+
+    grid/block replace the old `kernel(args, grid=..., block=...)` form.
+    """
+    kernel_layout_query(layout_result).launch(grid=[1, 1, 1], block=[32, 1, 1])
+
+
 def run():
     """
     Run the kernel and verify layout mapping.
-    
+
     NCU PROFILING COMMAND (copy-paste to terminal):
-    # Not needed for this exercise — layout is host-side data structure.
+    # Not needed for this exercise — layout is a compile-time data structure.
     # Profiling starts in Module 03 (TiledCopy).
-    
-    METRICS TO FOCUS ON (for later modules):
-    - l1tex__data_bank_conflicts_pipe_lsu_mem_shared.sum: SMEM bank conflicts
-    - l1tex__t_bytes_pipe_lsu_mem_global_op_ld.sum: Global load throughput
     """
-    
     # Allocate result tensor (3 int32 values)
-    result_torch = torch.zeros(3, dtype=torch.int32, device='cuda')
-    result_cute = from_dlpack(result_torch)
-    
+    result_torch = torch.zeros(3, dtype=torch.int32, device="cuda")
+
     # Launch kernel
-    kernel_layout_query(result_cute)
-    
-    # Copy back and verify
-    result_cpu = result_torch.cpu().numpy()
-    
-    print("\n" + "=" * 60)
-    print("  Module 01 — Exercise 01 Results")
-    print("=" * 60)
-    print(f"\n  Layout: shape=(128, 64), stride=(64, 1) [row-major]")
-    print(f"\n  Results:")
-    print(f"    Linear index of (5, 10):  {result_cpu[0]}")
-    print(f"    Linear index of (32, 0):  {result_cpu[1]}")
-    print(f"    Total size (cosize):      {result_cpu[2]}")
-    
+    launch(from_dlpack(result_torch))
+    torch.cuda.synchronize()
+
+    got = result_torch.cpu().tolist()
+
+    utils.banner("Module 01 — Exercise 01 Results")
+    print(f"  Layout: shape=({M}, {N}), stride=({N}, 1) [row-major]\n")
+    print("  results:")
+    print(f"    linear index of (5, 10): {got[0]}")
+    print(f"    linear index of (32, 0): {got[1]}")
+    print(f"    cosize:                  {got[2]}")
+    print()
+
     # Verify correctness
-    expected_idx_5_10 = 5 * 64 + 10  # row-major: row * stride_row + col
-    expected_idx_32_0 = 32 * 64 + 0
-    expected_size = 128 * 64
-    
-    print(f"\n  Expected:")
-    print(f"    Linear index of (5, 10):  {expected_idx_5_10}")
-    print(f"    Linear index of (32, 0):  {expected_idx_32_0}")
-    print(f"    Total size:               {expected_size}")
-    
-    passed = (
-        result_cpu[0] == expected_idx_5_10 and
-        result_cpu[1] == expected_idx_32_0 and
-        result_cpu[2] == expected_size
-    )
-    
-    print(f"\n  Verification: {'✓ PASSED' if passed else '✗ FAILED'}")
-    print("=" * 60 + "\n")
-    
+    expected = (5 * N + 10, 32 * N, M * N)
+    print("  expected:")
+    print(f"    linear index of (5, 10): {expected[0]}")
+    print(f"    linear index of (32, 0): {expected[1]}")
+    print(f"    cosize:                  {expected[2]}")
+    print()
+
+    passed = True
+    passed &= utils.check("index(5,10)", got[0], expected[0])
+    passed &= utils.check("index(32,0)", got[1], expected[1])
+    passed &= utils.check("cosize", got[2], expected[2])
+    utils.rule()
+    print(f"  {'PASSED' if passed else 'FAILED'}")
+    utils.rule()
+    print()
     return passed
 
 
@@ -147,9 +164,9 @@ def run():
 # CHECKPOINT — answer after running
 # ─────────────────────────────────────────────
 # C1: Did your PREDICT answers match? What was different and why?
-# C2: How does the tuple syntax (M, N) compare to make_shape(M, N) 
+# C2: How does the tuple syntax (M, N) compare to make_shape(M, N)
 #     in terms of readability?
-# C3: In a production GEMM kernel, where would you use this row-major 
+# C3: In a production GEMM kernel, where would you use this row-major
 #     layout? (Hint: think about the C/output matrix)
 # C4: What would change if we used column-major stride (1, M) instead?
 
