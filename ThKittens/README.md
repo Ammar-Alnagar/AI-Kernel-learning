@@ -48,41 +48,45 @@ make LEVEL=04 TRACK=solution run
 ### 1. Memory Hierarchy & Dataflow Architecture
 ```text
 +---------------------------------------------------------------------------------+
-| Host Memory (Pinned / Page-Locked)                                              |
+| Global Memory (TMA Descriptors & High-Bandwidth Memory)                         |
 +---------------------------------------------------------------------------------+
-        |  cudaMemcpyAsync / Unified Memory Pre-fetch       ^
+        |  tma::load_async / kittens::load (Direct to SMEM) ^  kittens::store
         v                                                   |
 +---------------------------------------------------------------------------------+
-| Device Global Memory (HBM3 / GDDR6X)                                            |
+| Shared Memory Tile: kittens::st_fl<ROWS, COLS> / st_bf<ROWS, COLS>              |
+| Hardware Swizzled via TMA & Circular Barrier Synchronization                    |
 +---------------------------------------------------------------------------------+
-        |  128-bit Vectorized Load / cp.async               ^  Coalesced Store
+        |  kittens::load(rt, st) / WGMMA Direct Operands    ^
         v                                                   |
 +---------------------------------------------------------------------------------+
-| Shared Memory / L1 Data Cache (Bank Conflict Free via Swizzling / Padding)      |
-+---------------------------------------------------------------------------------+
-        |  Warp Shuffle (__shfl_sync) / Register Load       ^
-        v                                                   |
-+---------------------------------------------------------------------------------+
-| Thread Register File (High Bandwidth, 0-cycle stall when unrolled)              |
+| Register Tile: kittens::rt_fl<ROWS, COLS> & Accumulator Tiles                   |
+| kittens::mma / kittens::wgmMA Warp Group Tensor Core Matrix Multiplication       |
 +---------------------------------------------------------------------------------+
 ```
 
 ### 2. Execution & Dataflow Graph
 ```mermaid
 graph TD
-    Grid[Grid of Thread Blocks] --> Cluster[Thread Block Cluster / DSMEM]
-    Cluster --> Block[Thread Block / Shared Memory]
-    Block --> Warp[Warp: 32 Threads SIMT]
-    Warp --> Shfl[Intra-Warp Shuffle / Reductions]
-    Warp --> Regs[Register File Operations]
-    Regs --> CoalescedStore[Coalesced Global Memory Write]
+    subgraph HopperProducer [TMA Producer Warp]
+        TMAInit["Initialize TMA Descriptor"] --> TMALoad["tma::load_async into Shared Tile st_a, st_b"]
+        TMALoad --> TMABarrier["arrive_and_wait on mbarrier"]
+    end
+    subgraph ConsumerWarpGroup [Warp Group Consumer Warps]
+        TMABarrier --> TileLoad["Load Shared Tile to Register Tile / rt_fl"]
+        TileLoad --> WGMMACompute["kittens::wgmma / kittens::mma_AB"]
+        WGMMACompute --> TileAccum["Accumulate in Register Tile rt_c"]
+    end
+    subgraph EpilogueStage [Epilogue & Store]
+        TileAccum --> EvtActivation["In-Register Activation / Softmax"]
+        EvtActivation --> SMEMStore["kittens::store to Global Memory"]
+    end
 ```
 
-### 3. Modern CUDA 12.x+ & Hardware Optimization Architecture
-- **Asynchronous Copies (`cp.async`):** Hardware-accelerated memory movement directly from Global Memory to Shared Memory bypassing general registers.
-- **Warp Shuffle Synchronization:** Deprecating naked shuffle intrinsics in favor of mask-enforced `__shfl_sync(0xFFFFFFFF, val, lane)`.
-- **Thread Block Clusters:** Utilizing CUDA 12+ cluster dimensions (`__cluster_dims__`) for Distributed Shared Memory (DSMEM) communication across SMs.
-- **Stream-Ordered Allocation:** `cudaMallocAsync` and `cudaFreeAsync` integrated with CUDA Graphs to eliminate host launch overheads.
+### 3. ThunderKittens Embedded Domain-Specific Architecture
+- **Tile-Centric Type System:** Strong compile-time types for Shared Memory tiles (`st_fl`, `st_bf`, `st_half`) and Register tiles (`rt_fl`, `rt_bf`) with statically checked dimensions.
+- **Hopper (H100) & Blackwell (B200) WGMMA:** Direct hardware abstraction for Warp Group Matrix Multiply and Accumulate (`wgmma.mma_async`), operating across 128 threads simultaneously.
+- **Asynchronous TMA Tiling:** Seamless integration with NVIDIA Tensor Memory Accelerator, offloading address calculations and strides to dedicated hardware.
+- **Micro-Kernel Composability:** High-level mathematical operations (`kittens::mul`, `kittens::add`, `kittens::exp`, `kittens::row_max`) implemented directly on typed tile structures without raw indexing boilerplate.
 
 ### 4. Mathematical & Architectural Key Principles
 - **Arithmetic Intensity & Roofline Model:** Bound kernel efficiency by maximizing FLOPS per byte transferred from higher-latency memory tiers:

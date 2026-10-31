@@ -265,34 +265,43 @@ For questions, issues, or support:
 ### 1. Memory Hierarchy & Dataflow Architecture
 ```text
 +---------------------------------------------------------------------------------+
-| High-Capacity Storage / DRAM                                                    |
+| Host System Compiler Frontend: AST Type Dictionaries & Template Token Streams   |
 +---------------------------------------------------------------------------------+
-        |  Asynchronous Vector Stream                       ^  Buffered Flush
-        v                                                   |
+        |  Template Metaprogram Recursion / Fold Expressions ^  Type Substitution Errors
+        v                                                    |
 +---------------------------------------------------------------------------------+
-| Low-Latency On-Chip Storage / Shared Memory / L1 Cache                          |
+| Compile-Time Constant Memory: constexpr Tile Shapes, Strides, Swizzle Trait Bags |
 +---------------------------------------------------------------------------------+
-        |  Register Slicing & Direct Compute                ^
-        v                                                   |
+        |  Static Value Lowering into Device Symbols         ^
+        v                                                    |
 +---------------------------------------------------------------------------------+
-| Functional Execution Units & Registers                                          |
+| Hardware Instruction Stream: Zero-Overhead Inlined Kernels & Fixed Register Maps |
 +---------------------------------------------------------------------------------+
 ```
 
 ### 2. Execution & Dataflow Graph
 ```mermaid
 graph TD
-    InputData[Input Data / Memory Buffers] --> Transform[Vectorized Transform & Boundary Guard]
-    Transform --> CacheStage[Cache / On-Chip Alignment]
-    CacheStage --> ComputeStage[Compute Pipeline & Reductions]
-    ComputeStage --> OutputData[Serialized / Coalesced Output]
+    subgraph MetaprogrammingPhase [Compile-Time Metaprogramming Pipeline]
+        TypeTraits["Template Parameters: TileShape, ElementTypes, ArchTag"] --> SFINAE["Concepts / SFINAE Constraint Validation"]
+        SFINAE --> LayoutCalculations["Constexpr Layout & Stride Computation"]
+        LayoutCalculations --> UnrollTree["Template Metaprogramming Loop Unrolling & Fold Expressions"]
+    end
+    subgraph CodegenPhase [Device Binary Codegen]
+        UnrollTree --> InlineKernel["Zero-Overhead Inlined Device Function"]
+        InlineKernel --> StaticSMEM["Static Shared Memory Layout Allocation"]
+    end
+    subgraph LaunchPhase [Hardware Kernel Launch]
+        StaticSMEM --> LaunchParams["Launch with Zero Runtime Dispatch Overhead"]
+        LaunchParams --> FastExecution["Peak Hardware Tensor Core Saturation"]
+    end
 ```
 
-### 3. Architectural Foundations & Modern API Best Practices
-- **Memory Hierarchy Optimization:** Structuring data flows to fit into L1/L2 caches and GPU shared memory, minimizing DRAM traffic.
-- **Vectorized Data Movement:** Enforcing 64-bit and 128-bit memory transaction alignment to maximize bus throughput.
-- **Asynchronous Execution:** Employing modern async primitives and pipelining to hide memory access latency.
-- **Latest Stable Framework Alignment:** Complete avoidance of deprecated interfaces, targeting modern idioms.
+### 3. Template Metaprogramming Architecture for GPU Computing
+- **Zero-Cost Abstractions:** Compile-time parameterization of tile sizes, layouts, and memory pipelines that compiles away completely, leaving optimal bare-metal machine code.
+- **C++20 Concepts & Constrained Templates:** Replacing arcane SFINAE errors with explicit compile-time concepts (`template <typename Layout> requires cute::is_layout_v<Layout>`).
+- **Compile-Time Layout Algebra:** Evaluating multi-dimensional coordinate projections, dimension strides, and bank conflict-avoidance offsets during compilation.
+- **Warp & MMA Specialization:** Template specialization on architecture tags (`cutlass::arch::Sm80`, `cutlass::arch::Sm90`) to select architecture-optimal instructions.
 
 ### 4. Mathematical & Architectural Key Principles
 - **Arithmetic Intensity & Roofline Model:** Bound kernel efficiency by maximizing FLOPS per byte transferred from higher-latency memory tiers:

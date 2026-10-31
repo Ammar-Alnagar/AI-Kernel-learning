@@ -327,42 +327,44 @@ Every project will output tables like this:
 ### 1. Memory Hierarchy & Dataflow Architecture
 ```text
 +---------------------------------------------------------------------------------+
-| Global Memory (TMA Multicast / cp.async)                                        |
+| Python Global Tensors (PyTorch Tensor / CUDA Unified Memory)                    |
 +---------------------------------------------------------------------------------+
-        |  Async TMA Load Descriptor                       ^  TMA Store / Epilogue
-        v                                                  |
+        |  dsl.tiled_copy / Auto-Swizzled Async DMA Transfer ^  dsl.store_tensor
+        v                                                    |
 +---------------------------------------------------------------------------------+
-| Shared Memory (CuTE Swizzled Layout to eliminate 32-bank conflicts)             |
-| Multi-stage Circular Buffer Managed by cute::PipelineTmaAsync                   |
+| Shared Memory Layout Engine: cute_dsl.Layout((BM, BN), (stride_m, 1))           |
+| Hierarchical Swizzling Patterns (Swizzle<3, 3, 3> for Conflict-Free Access)     |
 +---------------------------------------------------------------------------------+
-        |  cute::copy(tiled_copy, sA, rA)                  ^  cute::copy(rC, sC)
-        v                                                  |
+        |  dsl.local_partition / MMA Atom Load Slicing       ^
+        v                                                    |
 +---------------------------------------------------------------------------------+
-| Tensor Core MMA Registers (cute::gemm(tiled_mma, rA, rB, accum))                |
+| Tensor Core MMA Registers (dsl.gemm(tiled_mma, tArA, tBrB, tCrC))                |
 +---------------------------------------------------------------------------------+
 ```
 
 ### 2. Execution & Dataflow Graph
 ```mermaid
 graph TD
-    subgraph Host [Host Runtime Setup]
-        LayoutInit[cute::make_layout / make_tensor]
-        KernelLaunch[Collective Mainloop / Epilogue Builder]
+    subgraph PythonFrontend [Python CuTe-DSL AST Definition]
+        LayoutDef["Layout Definition: Shape & Stride Expressions"] --> DSLModule["dsl.jit Kernel Function"]
+        DSLModule --> CodeGen["CuTe C++20 Template Code Generation"]
     end
-    subgraph Device [Device Execution Pipeline]
-        ProducerWarp[Producer Warps: TMA / cp.async into SMEM]
-        PipelineBarrier[cuda::pipeline / mbarrier Sync]
-        ConsumerWarp[Consumer Warps: cute::gemm MMA Atom Execution]
-        EVT[Epilogue Visitor Tree Fusion: Bias + Activation]
+    subgraph JITBackend [Compilation & Target Lowering]
+        CodeGen --> ClangLowering["Clang / NVCC Compilation to PTX"]
+        ClangLowering --> ModuleLoad["Dynamic CUDA Driver Module Load"]
     end
-    LayoutInit --> KernelLaunch --> ProducerWarp --> PipelineBarrier --> ConsumerWarp --> EVT
+    subgraph HardwareExecution [Device Pipeline Execution]
+        ModuleLoad --> TMACopy["Async TMA / cp.async to SMEM"]
+        TMACopy --> MMACompute["Warp MMA Atom Execution"]
+        MMACompute --> GlobalEpilogue["Epilogue Store to Global Memory"]
+    end
 ```
 
-### 3. Modern CUTLASS 3.x / 4.x & CuTE Layout Algebra Architecture
-- **CuTE Layout Hierarchy:** Composable multidimensional mapping: `auto layout = make_layout(make_shape(M, N), make_stride(StrideM, StrideN));` with support for hierarchical tiling and compile-time shape deduction.
-- **Collective Builders:** Modern collective mainloop construction: `cutlass::gemm::collective::CollectiveBuilder<Arch, Operator, ElementA, LayoutA, ElementB, LayoutB, ElementAccumulator, TileShape, ClusterShape, StageCount, KernelSchedule>::CollectiveOp`.
-- **Warp Specialization & TMA Support:** Asynchronous copy via Tensor Memory Accelerator (TMA) bypassing register files and feeding SMEM directly, synchronized with `cute::PipelineTmaAsync` and `cuda::barrier`.
-- **Epilogue Visitor Tree (EVT):** Direct in-register fusion of bias, activation (GELU, ReLU, Silu), and quantization scaling before writing back to global memory.
+### 3. CuTe-DSL Pythonic Layout & Metaprogramming Architecture
+- **Pythonic Layout Algebra:** Directly composing shapes, strides, and hierarchical coordinates using Python syntax (`layout = make_layout((128, 64), GenRowMajor)`).
+- **Automated MMA & Copy Partitioning:** Generating thread-value mappings (`tiled_copy.get_slice(thread_id).partition_S(...)`) without manual CUDA thread-lane arithmetic.
+- **Dynamic-to-Static Specialization:** Dynamic tensor shapes bound at runtime and specialized into compile-time constants for maximum unrolling.
+- **Native Tensor Core Integration:** First-class bindings to SM80 MMA atoms and SM90 WGMMA instructions.
 
 ### 4. Mathematical & Architectural Key Principles
 - **Arithmetic Intensity & Roofline Model:** Bound kernel efficiency by maximizing FLOPS per byte transferred from higher-latency memory tiers:
