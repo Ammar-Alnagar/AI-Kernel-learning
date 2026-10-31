@@ -58,3 +58,48 @@ python setup.py  # Validates env, prints Python version + torch info
 - No OOP. No inheritance. No `__init__`. No class methods.
 - Only `@dataclass` as plain structs.
 - Every exercise ties to real kernel/systems work.
+
+
+---
+
+## Educational & Memory Flow Architecture
+
+### 1. Memory Hierarchy & Dataflow Architecture
+```text
++---------------------------------------------------------------------------------+
+| High-Capacity Storage / DRAM                                                    |
++---------------------------------------------------------------------------------+
+        |  Asynchronous Vector Stream                       ^  Buffered Flush
+        v                                                   |
++---------------------------------------------------------------------------------+
+| Low-Latency On-Chip Storage / Shared Memory / L1 Cache                          |
++---------------------------------------------------------------------------------+
+        |  Register Slicing & Direct Compute                ^
+        v                                                   |
++---------------------------------------------------------------------------------+
+| Functional Execution Units & Registers                                          |
++---------------------------------------------------------------------------------+
+```
+
+### 2. Execution & Dataflow Graph
+```mermaid
+graph TD
+    InputData[Input Data / Memory Buffers] --> Transform[Vectorized Transform & Boundary Guard]
+    Transform --> CacheStage[Cache / On-Chip Alignment]
+    CacheStage --> ComputeStage[Compute Pipeline & Reductions]
+    ComputeStage --> OutputData[Serialized / Coalesced Output]
+```
+
+### 3. Architectural Foundations & Modern API Best Practices
+- **Memory Hierarchy Optimization:** Structuring data flows to fit into L1/L2 caches and GPU shared memory, minimizing DRAM traffic.
+- **Vectorized Data Movement:** Enforcing 64-bit and 128-bit memory transaction alignment to maximize bus throughput.
+- **Asynchronous Execution:** Employing modern async primitives and pipelining to hide memory access latency.
+- **Latest Stable Framework Alignment:** Complete avoidance of deprecated interfaces, targeting modern idioms.
+
+### 4. Mathematical & Architectural Key Principles
+- **Arithmetic Intensity & Roofline Model:** Bound kernel efficiency by maximizing FLOPS per byte transferred from higher-latency memory tiers:
+  $$\text{Operational Intensity} = \frac{\text{Floating Point Operations (FLOPs)}}{\text{Bytes Transferred (DRAM \leftrightarrow SRAM)}}$$
+- **Latency Hiding:** Software pipelines overlap asynchronous global loads with compute stages across unrolled loops.
+- **Memory Coalescing & Bank Alignment:** Aligned memory accesses ensure full 32-byte or 128-byte transactions, preventing pipeline stalls.
+
+---

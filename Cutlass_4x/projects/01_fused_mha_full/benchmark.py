@@ -159,8 +159,9 @@ def run_benchmark():
                 'tokens_sec': tokens_sec,
             })
             
+            fa_str = f"{fa_latency:.3f}ms" if fa_latency else "N/A"
             print(f"\nB={B:3d}, S={S:4d}: "
-                  f"FlashAttn={fa_latency:.3f}ms if fa_latency else 'N/A':>10} "
+                  f"FlashAttn={fa_str:>10} "
                   f"torch={torch_latency:.3f}ms "
                   f"Tokens/sec={tokens_sec/1000:.1f}K")
     

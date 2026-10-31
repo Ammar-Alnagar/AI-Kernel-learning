@@ -42,3 +42,48 @@ Start with Module 1 and work through each module sequentially. Each module conta
 - Exercises to reinforce your learning
 
 Let's begin your journey to GPU optimization mastery!
+
+
+---
+
+## Educational & Memory Flow Architecture
+
+### 1. Memory Hierarchy & Dataflow Architecture
+```text
++---------------------------------------------------------------------------------+
+| Hardware Performance Monitors & PM Counters                                    |
++---------------------------------------------------------------------------------+
+        |  NCU Sampling / NSYS Timeline Tracing             ^
+        v                                                   |
++---------------------------------------------------------------------------------+
+| Bottleneck Categorization: Memory Bound vs Compute Bound vs Latency Bound        |
++---------------------------------------------------------------------------------+
+        |  Architectural Optimization Recommendations       ^
+        v                                                   |
++---------------------------------------------------------------------------------+
+| Maximum Achieved Hardware Speed-of-Light (SOL %)                                 |
++---------------------------------------------------------------------------------+
+```
+
+### 2. Execution & Dataflow Graph
+```mermaid
+graph TD
+    AppLaunch[Application Execution] --> NSYSTrace[NSYS System Timeline Analysis]
+    NSYSTrace --> NCUDetail[NCU Kernel Performance Analysis]
+    NCUDetail --> Roofline[Roofline Model Analysis]
+    Roofline --> ActionPlan[Targeted Optimization: SMEM Swizzle / Unroll / Vectorize]
+```
+
+### 3. Modern GPU Profiling & Performance Analysis Architecture
+- **Nsight Compute (NCU):** Measuring Speed-of-Light (SOL), Memory Chart analysis, warp stall sampling, and shared memory bank conflict detection.
+- **Nsight Systems (NSYS):** System-wide tracing across CUDA APIs, kernel execution timelines, NVLink throughput, and CPU-GPU overlap.
+- **CUDA Occupancy Calculator:** Balancing registers per thread and shared memory per block to achieve optimal active warps per SM.
+- **Roofline Analysis:** Identifying compute-bound vs. memory-bound operating regimes.
+
+### 4. Mathematical & Architectural Key Principles
+- **Arithmetic Intensity & Roofline Model:** Bound kernel efficiency by maximizing FLOPS per byte transferred from higher-latency memory tiers:
+  $$\text{Operational Intensity} = \frac{\text{Floating Point Operations (FLOPs)}}{\text{Bytes Transferred (DRAM \leftrightarrow SRAM)}}$$
+- **Latency Hiding:** Software pipelines overlap asynchronous global loads with compute stages across unrolled loops.
+- **Memory Coalescing & Bank Alignment:** Aligned memory accesses ensure full 32-byte or 128-byte transactions, preventing pipeline stalls.
+
+---

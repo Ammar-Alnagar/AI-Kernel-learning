@@ -43,3 +43,47 @@ For each chapter:
 3. Benchmark after each change.
 4. Use profiler evidence for next decisions.
 5. Keep a short tuning log for reproducibility.
+
+
+---
+
+## Educational & Memory Flow Architecture
+
+### 1. Memory Hierarchy & Dataflow Architecture
+```text
++---------------------------------------------------------------------------------+
+| Global Memory (Tensors A, B, C)                                                 |
++---------------------------------------------------------------------------------+
+        |  TileLang Auto-Vectorized Async DMA Load          ^  Tile DMA Store
+        v                                                   |
++---------------------------------------------------------------------------------+
+| Shared Memory Buffers (tile.alloc_shared with auto-swizzle)                      |
++---------------------------------------------------------------------------------+
+        |  tile.mma / Register Tile Slices                  ^
+        v                                                   |
++---------------------------------------------------------------------------------+
+| Register Accumulators & Tensor Core Compute Pipeline                            |
++---------------------------------------------------------------------------------+
+```
+
+### 2. Execution & Dataflow Graph
+```mermaid
+graph TD
+    TileDefinition[TileLang Kernel Specification] --> AST[Tile IR Analysis & Swizzle Optimization]
+    AST --> Lowering[Lowering to CuTE / CUDA C++ / PTX]
+    Lowering --> Execution[Hardware Execution: TMA -> SMEM -> Tensor Cores]
+```
+
+### 3. Modern TileLang Architecture & Kernel Compilation
+- **Tile-Centric Abstraction:** Writing compute primitives in terms of `tile.alloc_shared`, `tile.load`, and `tile.mma`.
+- **Layout Swizzling & Automatic Bank Optimization:** Compiler transforms tile layouts automatically to ensure zero shared memory bank conflicts.
+- **Hopper / Blackwell Codegen:** Lowering to TMA and warp-specialized WGMMA instructions without manual PTX assembly.
+- **Torch C++ Integration:** Seamless JIT compilation and PyTorch custom op bindings.
+
+### 4. Mathematical & Architectural Key Principles
+- **Arithmetic Intensity & Roofline Model:** Bound kernel efficiency by maximizing FLOPS per byte transferred from higher-latency memory tiers:
+  $$\text{Operational Intensity} = \frac{\text{Floating Point Operations (FLOPs)}}{\text{Bytes Transferred (DRAM \leftrightarrow SRAM)}}$$
+- **Latency Hiding:** Software pipelines overlap asynchronous global loads with compute stages across unrolled loops.
+- **Memory Coalescing & Bank Alignment:** Aligned memory accesses ensure full 32-byte or 128-byte transactions, preventing pipeline stalls.
+
+---

@@ -162,3 +162,54 @@ You should already understand:
 If you do not understand these, go back to your CuTe/CUTLASS materials first.
 
 **Start with:** `01_attention/README.md`
+
+
+---
+
+## Educational & Memory Flow Architecture
+
+### 1. Memory Hierarchy & Dataflow Architecture
+```text
++---------------------------------------------------------------------------------+
+| Global Memory: Full Attention Matrix Q, K, V ($O(N^2)$ memory wall avoided)      |
++---------------------------------------------------------------------------------+
+        |  Block-Tiled Async Loading ($B_r \times d$, $B_c \times d$)           ^
+        v                                                                         |
++---------------------------------------------------------------------------------+
+| Shared Memory: SRAM Tile ($Q_i, K_j, V_j$) & Online Softmax Running Accumulators |
++---------------------------------------------------------------------------------+
+        |  Online Softmax Rescaling in Registers                                 ^
+        v                                                                         |
++---------------------------------------------------------------------------------+
+| Output Register Accumulator $O_i$ ($O(N)$ SRAM IO Complexity)                   |
++---------------------------------------------------------------------------------+
+```
+
+### 2. Execution & Dataflow Graph
+```mermaid
+graph TD
+    Q[Query Tile in SMEM] --> DotProduct[Q * K^T Tile Dot Product]
+    K[Key Tile in SMEM] --> DotProduct
+    DotProduct --> OnlineSoftmax[Online Softmax: Running Max & Sum Update]
+    OnlineSoftmax --> VProduct[P Tile * Value Tile]
+    V[Value Tile in SMEM] --> VProduct
+    VProduct --> RescaledAccum[Rescale and Accumulate Output Tile]
+    RescaledAccum --> WriteGlobal[Write Final Attention Out to HBM]
+```
+
+### 3. Transformer Mathematics & Hardware Efficiency Deep Dive
+- **FlashAttention Online Softmax:**
+  $$m_i = \max(m_{i-1}, \max(S_i)), \quad d_i = e^{m_{i-1} - m_i} d_{i-1} + \sum e^{S_i - m_i}$$
+  $$O_i = \text{diag}(e^{m_{i-1} - m_i}) O_{i-1} + e^{S_i - m_i} V_i$$
+- **Arithmetic Intensity & Roofline:**
+  $$\text{Operational Intensity} = \frac{2 \cdot M \cdot N \cdot K}{M \cdot K + K \cdot N + M \cdot N} \approx \frac{2 K}{3}$$
+- **PagedAttention & KV-Cache Footprint:**
+  $$\text{KV Cache Memory per token} = 2 \times 2 \times n_{\text{layers}} \times n_{\text{heads}} \times d_{\text{head}} \times \text{sizeof}(\text{dtype})$$
+
+### 4. Mathematical & Architectural Key Principles
+- **Arithmetic Intensity & Roofline Model:** Bound kernel efficiency by maximizing FLOPS per byte transferred from higher-latency memory tiers:
+  $$\text{Operational Intensity} = \frac{\text{Floating Point Operations (FLOPs)}}{\text{Bytes Transferred (DRAM \leftrightarrow SRAM)}}$$
+- **Latency Hiding:** Software pipelines overlap asynchronous global loads with compute stages across unrolled loops.
+- **Memory Coalescing & Bank Alignment:** Aligned memory accesses ensure full 32-byte or 128-byte transactions, preventing pipeline stalls.
+
+---
