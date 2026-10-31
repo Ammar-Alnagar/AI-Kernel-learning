@@ -196,3 +196,48 @@ This project is licensed under the LLVM License - see the [LICENSE](LICENSE) fil
 <p align="center">
   <sub>Built with ❤️ by the Modular team</sub>
 </p>
+
+
+---
+
+## Educational & Memory Flow Architecture
+
+### 1. Memory Hierarchy & Dataflow Architecture
+```text
++---------------------------------------------------------------------------------+
+| Host System RAM / GPU Buffer Memory                                             |
++---------------------------------------------------------------------------------+
+        |  Mojo DTypePointer Vectorized Load                ^  Vectorized Store
+        v                                                   |
++---------------------------------------------------------------------------------+
+| SIMD Register Vectors (e.g., SIMD[DType.float32, 16])                           |
++---------------------------------------------------------------------------------+
+        |  Hardware Fused Multiply Add (FMA)                ^
+        v                                                   |
++---------------------------------------------------------------------------------+
+| High-Throughput Compute Units with Zero Runtime Overhead                        |
++---------------------------------------------------------------------------------+
+```
+
+### 2. Execution & Dataflow Graph
+```mermaid
+graph TD
+    DataPointer[DTypePointer Memory Buffer] --> SIMDLoad[SIMD Vector Load]
+    SIMDLoad --> TiledLoop[Pipelined Tiled Loop Execution]
+    TiledLoop --> FMA[Hardware Vectorized FMA / Compute]
+    FMA --> SIMDStore[Vectorized Memory Store]
+```
+
+### 3. Mojo High-Performance AI Programming Architecture
+- **Ownership & Borrowing:** Value ownership (`owned`, `borrowed`, `inout`) semantics ensuring zero-copy memory safety.
+- **SIMD Vectorization:** Native hardware vectorization with `SIMD[DType, width]` primitives and parameterized tile unrolling.
+- **Parallelization & Tiling:** High-level abstractions with `parallelize` and `tile` decorators mapping to hardware CPU/GPU workers.
+- **Python Interop:** Zero-overhead C-FFI and bi-directional Python object exchange.
+
+### 4. Mathematical & Architectural Key Principles
+- **Arithmetic Intensity & Roofline Model:** Bound kernel efficiency by maximizing FLOPS per byte transferred from higher-latency memory tiers:
+  $$\text{Operational Intensity} = \frac{\text{Floating Point Operations (FLOPs)}}{\text{Bytes Transferred (DRAM \leftrightarrow SRAM)}}$$
+- **Latency Hiding:** Software pipelines overlap asynchronous global loads with compute stages across unrolled loops.
+- **Memory Coalescing & Bank Alignment:** Aligned memory accesses ensure full 32-byte or 128-byte transactions, preventing pipeline stalls.
+
+---

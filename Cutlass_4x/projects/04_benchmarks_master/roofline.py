@@ -37,7 +37,7 @@ class KernelBenchmark:
 
 
 @dataclass
-class GPU specs:
+class GPUSpecs:
     name: str
     sm: int
     peak_fp16_tflops: float
@@ -47,19 +47,19 @@ class GPU specs:
 
 # GPU specifications
 GPU_SPECS = {
-    "A100": GPU specs(
+    "A100": GPUSpecs(
         name="A100", sm=80,
         peak_fp16_tflops=312,  # Dense FP16 Tensor Core
         peak_fp32_tflops=19.5,
         memory_bandwidth_gbps=1555,
     ),
-    "H100": GPU specs(
+    "H100": GPUSpecs(
         name="H100", sm=90,
         peak_fp16_tflops=989,  # Dense FP16 Tensor Core
         peak_fp32_tflops=67,
         memory_bandwidth_gbps=2000,
     ),
-    "B200": GPU specs(
+    "B200": GPUSpecs(
         name="B200", sm=100,
         peak_fp16_tflops=20000,  # FP4 dense (FP16 equivalent lower)
         peak_fp32_tflops=90,
@@ -141,7 +141,7 @@ def benchmark_attention(B: int, H: int, S: int, D: int,
 
 
 def generate_roofline_chart(benchmarks: List[KernelBenchmark], 
-                            gpu: GPU specs,
+                            gpu: GPUSpecs,
                             output_path: str = "roofline_chart.png"):
     """Generate roofline analysis chart."""
     
