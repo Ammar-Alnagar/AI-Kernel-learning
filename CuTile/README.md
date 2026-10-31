@@ -115,42 +115,41 @@ Expert → Module 09: Capstone Project
 ### 1. Memory Hierarchy & Dataflow Architecture
 ```text
 +---------------------------------------------------------------------------------+
-| Global Memory (TMA Multicast / cp.async)                                        |
+| Host / Global Memory (PyTorch Tensors / CuTile Arrays)                          |
 +---------------------------------------------------------------------------------+
-        |  Async TMA Load Descriptor                       ^  TMA Store / Epilogue
+        |  cutile.load_tile / Asynchronous DMA             ^  cutile.store_tile
         v                                                  |
 +---------------------------------------------------------------------------------+
-| Shared Memory (CuTE Swizzled Layout to eliminate 32-bank conflicts)             |
-| Multi-stage Circular Buffer Managed by cute::PipelineTmaAsync                   |
+| Tile Shared Memory Scratchpad (cutile.SharedArray with Auto-Bank Padding)       |
 +---------------------------------------------------------------------------------+
-        |  cute::copy(tiled_copy, sA, rA)                  ^  cute::copy(rC, sC)
+        |  Tile Slicing & Sub-Tile Distribution            ^
         v                                                  |
 +---------------------------------------------------------------------------------+
-| Tensor Core MMA Registers (cute::gemm(tiled_mma, rA, rB, accum))                |
+| Warp Registers & Tensor Core Tile MMA (cutile.mma(tile_A, tile_B, tile_C))       |
 +---------------------------------------------------------------------------------+
 ```
 
 ### 2. Execution & Dataflow Graph
 ```mermaid
 graph TD
-    subgraph Host [Host Runtime Setup]
-        LayoutInit[cute::make_layout / make_tensor]
-        KernelLaunch[Collective Mainloop / Epilogue Builder]
+    subgraph Frontend [CuTile Python Kernel Definition]
+        Decorate["@cutile.jit Kernel Definition"] --> TileShape["Tile Shape & Stride Deduction"]
+        TileShape --> GridLaunch["cutile.launch Grid Dimensions"]
     end
-    subgraph Device [Device Execution Pipeline]
-        ProducerWarp[Producer Warps: TMA / cp.async into SMEM]
-        PipelineBarrier[cuda::pipeline / mbarrier Sync]
-        ConsumerWarp[Consumer Warps: cute::gemm MMA Atom Execution]
-        EVT[Epilogue Visitor Tree Fusion: Bias + Activation]
+    subgraph DeviceLoop [Tile-Based Execution Loop]
+        GridLaunch --> LoadTiles["Asynchronous Tile Load to SharedArray"]
+        LoadTiles --> TileSync["Tile Barrier Synchronization"]
+        TileSync --> MMATile["Tensor Core Matrix Multiply Accumulate"]
+        MMATile --> EpilogueFusion["Elementwise Tile Activation & Scaling"]
+        EpilogueFusion --> StoreTiles["Coalesced Store Tile to Global Memory"]
     end
-    LayoutInit --> KernelLaunch --> ProducerWarp --> PipelineBarrier --> ConsumerWarp --> EVT
 ```
 
-### 3. Modern CUTLASS 3.x / 4.x & CuTE Layout Algebra Architecture
-- **CuTE Layout Hierarchy:** Composable multidimensional mapping: `auto layout = make_layout(make_shape(M, N), make_stride(StrideM, StrideN));` with support for hierarchical tiling and compile-time shape deduction.
-- **Collective Builders:** Modern collective mainloop construction: `cutlass::gemm::collective::CollectiveBuilder<Arch, Operator, ElementA, LayoutA, ElementB, LayoutB, ElementAccumulator, TileShape, ClusterShape, StageCount, KernelSchedule>::CollectiveOp`.
-- **Warp Specialization & TMA Support:** Asynchronous copy via Tensor Memory Accelerator (TMA) bypassing register files and feeding SMEM directly, synchronized with `cute::PipelineTmaAsync` and `cuda::barrier`.
-- **Epilogue Visitor Tree (EVT):** Direct in-register fusion of bias, activation (GELU, ReLU, Silu), and quantization scaling before writing back to global memory.
+### 3. CuTile Pythonic GPU Architecture & Best Practices
+- **Tile-Centric Abstraction:** Replaces thread-level indexing with high-level multidimensional tiles (`cutile.tile(shape=(BM, BN))`), letting the compiler handle register allocation and thread coordinates.
+- **Automated Memory Padding:** Shared memory layouts allocated via `cutile.SharedArray` automatically insert padding and swizzling to prevent bank conflicts.
+- **Seamless PyTorch Interoperability:** Zero-overhead pointers and tensor strides passed directly between PyTorch and CuTile JIT-compiled kernels.
+- **Persistent Thread Block Scheduling:** Re-using thread blocks across output tile tiles to maximize cache warmth and minimize launch latency.
 
 ### 4. Mathematical & Architectural Key Principles
 - **Arithmetic Intensity & Roofline Model:** Bound kernel efficiency by maximizing FLOPS per byte transferred from higher-latency memory tiers:

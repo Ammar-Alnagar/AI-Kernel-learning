@@ -442,42 +442,44 @@ MIT License — see LICENSE file.
 ### 1. Memory Hierarchy & Dataflow Architecture
 ```text
 +---------------------------------------------------------------------------------+
-| Global Memory (TMA Multicast / cp.async)                                        |
+| Host / Framework Tensors (PyTorch torch.Tensor / DLPack / CudaArray)            |
 +---------------------------------------------------------------------------------+
-        |  Async TMA Load Descriptor                       ^  TMA Store / Epilogue
+        |  TMA Multicast Descriptor / Asynchronous Push    ^  cutlass.emit_store
         v                                                  |
 +---------------------------------------------------------------------------------+
-| Shared Memory (CuTE Swizzled Layout to eliminate 32-bank conflicts)             |
-| Multi-stage Circular Buffer Managed by cute::PipelineTmaAsync                   |
+| Shared Memory Tensor Engine (Swizzled Multistage Circular Queue)                 |
+| Managed by CUTLASS 4.x Collective Mainloop Pipeline                              |
 +---------------------------------------------------------------------------------+
-        |  cute::copy(tiled_copy, sA, rA)                  ^  cute::copy(rC, sC)
+        |  WGMMA Warp Group Matrix Multiply                ^
         v                                                  |
 +---------------------------------------------------------------------------------+
-| Tensor Core MMA Registers (cute::gemm(tiled_mma, rA, rB, accum))                |
+| Tensor Core MMA Register Accumulators & In-Register Epilogue Fusion              |
 +---------------------------------------------------------------------------------+
 ```
 
 ### 2. Execution & Dataflow Graph
 ```mermaid
 graph TD
-    subgraph Host [Host Runtime Setup]
-        LayoutInit[cute::make_layout / make_tensor]
-        KernelLaunch[Collective Mainloop / Epilogue Builder]
+    subgraph PythonSpec [CUTLASS 4.x Python Specification]
+        HighLevelOp["cutlass.op.Gemm Definition"] --> ConfigSpace["Autotuning Configuration Space: Tile & Stage Sizes"]
+        ConfigSpace --> BenchmarkRunner["Profiling Benchmark Search Harness"]
     end
-    subgraph Device [Device Execution Pipeline]
-        ProducerWarp[Producer Warps: TMA / cp.async into SMEM]
-        PipelineBarrier[cuda::pipeline / mbarrier Sync]
-        ConsumerWarp[Consumer Warps: cute::gemm MMA Atom Execution]
-        EVT[Epilogue Visitor Tree Fusion: Bias + Activation]
+    subgraph JITPipeline [Codegen & JIT Compilation Engine]
+        BenchmarkRunner --> BestConfig["Optimal Config Selection"]
+        BestConfig --> CppCodegen["C++ CuTE / Collective Emitter"]
+        CppCodegen --> NVCCJit["Clang/NVCC JIT Compilation"]
     end
-    LayoutInit --> KernelLaunch --> ProducerWarp --> PipelineBarrier --> ConsumerWarp --> EVT
+    subgraph KernelExecution [Optimized Target Execution]
+        NVCCJit --> PytorchOp["PyTorch Custom Op Dispatch"]
+        PytorchOp --> DeviceExecution["Hardware Execution: TMA -> SMEM -> WGMMA"]
+    end
 ```
 
-### 3. Modern CUTLASS 3.x / 4.x & CuTE Layout Algebra Architecture
-- **CuTE Layout Hierarchy:** Composable multidimensional mapping: `auto layout = make_layout(make_shape(M, N), make_stride(StrideM, StrideN));` with support for hierarchical tiling and compile-time shape deduction.
-- **Collective Builders:** Modern collective mainloop construction: `cutlass::gemm::collective::CollectiveBuilder<Arch, Operator, ElementA, LayoutA, ElementB, LayoutB, ElementAccumulator, TileShape, ClusterShape, StageCount, KernelSchedule>::CollectiveOp`.
-- **Warp Specialization & TMA Support:** Asynchronous copy via Tensor Memory Accelerator (TMA) bypassing register files and feeding SMEM directly, synchronized with `cute::PipelineTmaAsync` and `cuda::barrier`.
-- **Epilogue Visitor Tree (EVT):** Direct in-register fusion of bias, activation (GELU, ReLU, Silu), and quantization scaling before writing back to global memory.
+### 3. CUTLASS 4.x Python-First Architecture & Automation
+- **Pythonic GEMM Construction:** Declarative high-level interfaces (`cutlass.op.Gemm(element_a=cutlass.DataType.f16, ...)`) eliminating C++ template boilerplate.
+- **Built-in Autotuning Search Engine:** Automatic exploration over tile dimensions, stage counts, and warp configurations across target architectures (SM80, SM90, SM100).
+- **Epilogue Fusion Chains:** Composing activation functions (GELU, SiLU), residual adds, and quantization scalers into fused epilogues without intermediary DRAM traffic.
+- **Direct PyTorch JIT Integration:** Compiling directly to Python callable bindings with seamless tensor stride and memory layout passing.
 
 ### 4. Mathematical & Architectural Key Principles
 - **Arithmetic Intensity & Roofline Model:** Bound kernel efficiency by maximizing FLOPS per byte transferred from higher-latency memory tiers:

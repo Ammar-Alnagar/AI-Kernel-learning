@@ -36,42 +36,46 @@ TUTORIAL_USE_SOLUTION=1 rustc --test test.rs -o test_bin && ./test_bin
 ### 1. Memory Hierarchy & Dataflow Architecture
 ```text
 +---------------------------------------------------------------------------------+
-| Global Memory (TMA Multicast / cp.async)                                        |
+| Host Memory (Rust GpuBuffer / Pinned Device Slice)                              |
 +---------------------------------------------------------------------------------+
-        |  Async TMA Load Descriptor                       ^  TMA Store / Epilogue
+        |  Zero-Copy Async Stream Transfer / HBM Upload    ^  DeviceToHost Stream
         v                                                  |
 +---------------------------------------------------------------------------------+
-| Shared Memory (CuTE Swizzled Layout to eliminate 32-bank conflicts)             |
-| Multi-stage Circular Buffer Managed by cute::PipelineTmaAsync                   |
+| Device Global Memory (DeviceBuffer<T> / Shape<M, N>)                             |
 +---------------------------------------------------------------------------------+
-        |  cute::copy(tiled_copy, sA, rA)                  ^  cute::copy(rC, sC)
+        |  Type-Safe Tile Slicing: TileView<'a, T>         ^  Tiled Store
         v                                                  |
 +---------------------------------------------------------------------------------+
-| Tensor Core MMA Registers (cute::gemm(tiled_mma, rA, rB, accum))                |
+| Shared Memory Scratchpad (Static Alloc / Bank-Conflict Free Strided Layout)      |
++---------------------------------------------------------------------------------+
+        |  Tensor Core MMA Kernel Execution / SIMD Vector   ^
+        v                                                  |
++---------------------------------------------------------------------------------+
+| Hardware Registers & Tensor Core Execution Units                                 |
 +---------------------------------------------------------------------------------+
 ```
 
 ### 2. Execution & Dataflow Graph
 ```mermaid
 graph TD
-    subgraph Host [Host Runtime Setup]
-        LayoutInit[cute::make_layout / make_tensor]
-        KernelLaunch[Collective Mainloop / Epilogue Builder]
+    subgraph RustHost [Rust Type-Safe Host Orchestration]
+        DeviceInit["GpuContext::new"] --> AllocBuf["DeviceBuffer::from_slice"]
+        AllocBuf --> TileDesc["TileLayout::new::<BM, BN>"]
+        TileDesc --> LaunchConfig["LaunchConfig: Grid & Block Topology"]
     end
-    subgraph Device [Device Execution Pipeline]
-        ProducerWarp[Producer Warps: TMA / cp.async into SMEM]
-        PipelineBarrier[cuda::pipeline / mbarrier Sync]
-        ConsumerWarp[Consumer Warps: cute::gemm MMA Atom Execution]
-        EVT[Epilogue Visitor Tree Fusion: Bias + Activation]
+    subgraph KernelExecution [CUDA Kernel Execution Engine]
+        LaunchConfig --> StreamEnqueue["cudaLaunchKernel on CudaStream"]
+        StreamEnqueue --> AsyncTileCopy["Async Global to Shared Tile Transfer"]
+        AsyncTileCopy --> ComputeStep["Warp-Level MMA Reduction"]
+        ComputeStep --> SyncPoint["CudaStream::synchronize / Future"]
     end
-    LayoutInit --> KernelLaunch --> ProducerWarp --> PipelineBarrier --> ConsumerWarp --> EVT
 ```
 
-### 3. Modern CUTLASS 3.x / 4.x & CuTE Layout Algebra Architecture
-- **CuTE Layout Hierarchy:** Composable multidimensional mapping: `auto layout = make_layout(make_shape(M, N), make_stride(StrideM, StrideN));` with support for hierarchical tiling and compile-time shape deduction.
-- **Collective Builders:** Modern collective mainloop construction: `cutlass::gemm::collective::CollectiveBuilder<Arch, Operator, ElementA, LayoutA, ElementB, LayoutB, ElementAccumulator, TileShape, ClusterShape, StageCount, KernelSchedule>::CollectiveOp`.
-- **Warp Specialization & TMA Support:** Asynchronous copy via Tensor Memory Accelerator (TMA) bypassing register files and feeding SMEM directly, synchronized with `cute::PipelineTmaAsync` and `cuda::barrier`.
-- **Epilogue Visitor Tree (EVT):** Direct in-register fusion of bias, activation (GELU, ReLU, Silu), and quantization scaling before writing back to global memory.
+### 3. Cutile-RS Architectural Principles & Type Safety
+- **Rust Memory Safety for CUDA:** Compile-time verification of buffer lifetimes (`'a`) and non-aliasing guarantees across concurrent CUDA streams.
+- **Const-Generic Tile Geometry:** Shapes and strides encoded as const generics (`Tile<T, M, N>`) allowing compile-time calculation of shared memory requirements.
+- **Zero-Cost Abstractions:** Direct inlining into raw CUDA Driver/Runtime FFI without runtime penalty or allocation overhead.
+- **Async/Await Stream Integration:** Integration with Tokio / async runtimes using non-blocking CUDA event queries.
 
 ### 4. Mathematical & Architectural Key Principles
 - **Arithmetic Intensity & Roofline Model:** Bound kernel efficiency by maximizing FLOPS per byte transferred from higher-latency memory tiers:

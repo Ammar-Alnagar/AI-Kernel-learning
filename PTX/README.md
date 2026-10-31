@@ -130,41 +130,46 @@ Good luck on your path to becoming an expert GPU kernel engineer!
 ### 1. Memory Hierarchy & Dataflow Architecture
 ```text
 +---------------------------------------------------------------------------------+
-| Host Memory (Pinned / Page-Locked)                                              |
+| Global Memory (.global) / Constant Memory (.const) / Parameter (.param)          |
 +---------------------------------------------------------------------------------+
-        |  cudaMemcpyAsync / Unified Memory Pre-fetch       ^
-        v                                                   |
+        |  cp.async.ca / cp.async.cg (Direct Bypass to SMEM) ^  st.global.v4
+        v                                                    |
 +---------------------------------------------------------------------------------+
-| Device Global Memory (HBM3 / GDDR6X)                                            |
+| Shared Memory (.shared) / Distributed Shared Memory (.shared::cluster)          |
+| Addressed via cvta.to.shared / ld.shared.v4 / st.shared.v4                       |
 +---------------------------------------------------------------------------------+
-        |  128-bit Vectorized Load / cp.async               ^  Coalesced Store
-        v                                                   |
+        |  ld.shared / cvt / shfl.sync                      ^  bar.sync / bar.arrive
+        v                                                    |
 +---------------------------------------------------------------------------------+
-| Shared Memory / L1 Data Cache (Bank Conflict Free via Swizzling / Padding)      |
-+---------------------------------------------------------------------------------+
-        |  Warp Shuffle (__shfl_sync) / Register Load       ^
-        v                                                   |
-+---------------------------------------------------------------------------------+
-| Thread Register File (High Bandwidth, 0-cycle stall when unrolled)              |
+| Virtual Registers (%r0..%rN, %f0..%fN, Predicates %p0..%pN)                      |
+| Direct Tensor Core MMA Execution (mma.sync.aligned.m16n8k16)                    |
 +---------------------------------------------------------------------------------+
 ```
 
 ### 2. Execution & Dataflow Graph
 ```mermaid
 graph TD
-    Grid[Grid of Thread Blocks] --> Cluster[Thread Block Cluster / DSMEM]
-    Cluster --> Block[Thread Block / Shared Memory]
-    Block --> Warp[Warp: 32 Threads SIMT]
-    Warp --> Shfl[Intra-Warp Shuffle / Reductions]
-    Warp --> Regs[Register File Operations]
-    Regs --> CoalescedStore[Coalesced Global Memory Write]
+    subgraph GlobalDecode [PTX Address Translation & Direct Transfer]
+        ParamReg["Load Kernel Parameters: ld.param.u64"] --> GenericConv["cvta.to.global"]
+        GenericConv --> AsyncCopy["cp.async.ca.shared.global (%smem), (%gmem), 16"]
+        AsyncCopy --> CommitGroup["cp.async.commit_group & cp.async.wait_group 0"]
+    end
+    subgraph SMEMCoord [Shared Memory Synchronization]
+        CommitGroup --> BarSync["bar.sync 0 / barrier.cluster.arrive"]
+        BarSync --> SMEMLoad["Vectorized Read: ld.shared.v4.f32"]
+    end
+    subgraph ComputePipeline [MMA & Predicated Execution]
+        SMEMLoad --> MMASync["mma.sync.aligned.m16n8k16.row.col"]
+        MMASync --> WarpShfl["shfl.sync.bfly.b32 Reduction"]
+        WarpShfl --> PredGuard["@%p0 st.global.v4.f32 (%out_ptr), {%r0,%r1,%r2,%r3}"]
+    end
 ```
 
-### 3. Modern CUDA 12.x+ & Hardware Optimization Architecture
-- **Asynchronous Copies (`cp.async`):** Hardware-accelerated memory movement directly from Global Memory to Shared Memory bypassing general registers.
-- **Warp Shuffle Synchronization:** Deprecating naked shuffle intrinsics in favor of mask-enforced `__shfl_sync(0xFFFFFFFF, val, lane)`.
-- **Thread Block Clusters:** Utilizing CUDA 12+ cluster dimensions (`__cluster_dims__`) for Distributed Shared Memory (DSMEM) communication across SMs.
-- **Stream-Ordered Allocation:** `cudaMallocAsync` and `cudaFreeAsync` integrated with CUDA Graphs to eliminate host launch overheads.
+### 3. PTX ISA Architecture & Low-Level Instruction Optimization
+- **Explicit Memory Spaces:** Distinct instructions for distinct memory segments (`ld.global`, `ld.shared`, `ld.local`, `ld.const`, `ld.param`) avoiding costly generic address translation (`cvta`).
+- **Asynchronous Load Pipelines (`cp.async`):** Bypass register files completely during Global-to-Shared memory transactions, minimizing register pressure and warp stall cycles.
+- **Tensor Core MMA Instructions:** Low-level matrix multiply-accumulate intrinsics (`mma.sync.aligned.m16n8k16` / `wgmMA` on SM90) maximizing hardware math pipeline saturation.
+- **Predicated Execution:** Replaces branching with predicate registers (`@%p0 bra label` or `@%p1 add.f32`) to completely avoid warp divergence.
 
 ### 4. Mathematical & Architectural Key Principles
 - **Arithmetic Intensity & Roofline Model:** Bound kernel efficiency by maximizing FLOPS per byte transferred from higher-latency memory tiers:

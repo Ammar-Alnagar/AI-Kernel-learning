@@ -97,34 +97,43 @@ MIT License — use this for learning, teaching, or adapting in your own project
 ### 1. Memory Hierarchy & Dataflow Architecture
 ```text
 +---------------------------------------------------------------------------------+
-| High-Capacity Storage / DRAM                                                    |
+| Host Physical DRAM (CPython Heap / Raw Memory Buffers)                          |
 +---------------------------------------------------------------------------------+
-        |  Asynchronous Vector Stream                       ^  Buffered Flush
-        v                                                   |
+        |  NumPy ndarray / PyTorch Tensor Views (Zero-Copy Slicing) ^  Cache Flush
+        v                                                           |
 +---------------------------------------------------------------------------------+
-| Low-Latency On-Chip Storage / Shared Memory / L1 Cache                          |
+| Pinned Host Memory (Page-Locked DRAM Buffers / Shared Memory Posix IPC)         |
 +---------------------------------------------------------------------------------+
-        |  Register Slicing & Direct Compute                ^
-        v                                                   |
+        |  Asynchronous cudaMemcpyAsync via CUDA Streams            ^
+        v                                                           |
 +---------------------------------------------------------------------------------+
-| Functional Execution Units & Registers                                          |
+| GPU Device Global Memory & Tensor Accelerators (Zero-Copy DLPack Pointer FFI)   |
 +---------------------------------------------------------------------------------+
 ```
 
 ### 2. Execution & Dataflow Graph
 ```mermaid
 graph TD
-    InputData[Input Data / Memory Buffers] --> Transform[Vectorized Transform & Boundary Guard]
-    Transform --> CacheStage[Cache / On-Chip Alignment]
-    CacheStage --> ComputeStage[Compute Pipeline & Reductions]
-    ComputeStage --> OutputData[Serialized / Coalesced Output]
+    subgraph HostPython [Python Execution & Memory Orchestration]
+        RawData["Input Ingestion / Python Objects"] --> StructuredBuf["Zero-Copy Buffer Protocol / Memoryview"]
+        StructuredBuf --> PinnedAlloc["Pinned Memory Allocation: torch.empty(..., pin_memory=True)"]
+    end
+    subgraph AsyncPipeline [Async Streaming & Hardware Dispatch]
+        PinnedAlloc --> StreamRecord["cuda.Stream & cuda.Event Recording"]
+        StreamRecord --> NonBlockingH2D["Non-Blocking H2D Memory Copy"]
+        NonBlockingH2D --> KernelExecution["GPU Kernel Execution / Tensor Operations"]
+    end
+    subgraph AsyncSync [Event-Based Synchronization]
+        KernelExecution --> EventSync["Event Synchronization without GIL Contention"]
+        EventSync --> OutputHost["Zero-Copy Output Consumer"]
+    end
 ```
 
-### 3. Architectural Foundations & Modern API Best Practices
-- **Memory Hierarchy Optimization:** Structuring data flows to fit into L1/L2 caches and GPU shared memory, minimizing DRAM traffic.
-- **Vectorized Data Movement:** Enforcing 64-bit and 128-bit memory transaction alignment to maximize bus throughput.
-- **Asynchronous Execution:** Employing modern async primitives and pipelining to hide memory access latency.
-- **Latest Stable Framework Alignment:** Complete avoidance of deprecated interfaces, targeting modern idioms.
+### 3. Python HPC Memory Flow & Architectural Best Practices
+- **Zero-Copy Memoryviews & Buffer Protocol:** Passing pointers across C extensions, NumPy, and PyTorch using the standard Python buffer protocol to prevent unnecessary host-side data replication.
+- **Pinned (Page-Locked) Memory Buffers:** Allocating page-locked host memory to enable high-throughput DMA engine transfers without CPU paging interrupts.
+- **Non-blocking Stream Asynchrony:** Decoupling GPU compute streams from the Python GIL (Global Interpreter Lock) to achieve true concurrent execution.
+- **Inter-Process Shared Memory (`multiprocessing.shared_memory`):** High-bandwidth inter-process communication for distributed workers without IPC serialization overhead.
 
 ### 4. Mathematical & Architectural Key Principles
 - **Arithmetic Intensity & Roofline Model:** Bound kernel efficiency by maximizing FLOPS per byte transferred from higher-latency memory tiers:

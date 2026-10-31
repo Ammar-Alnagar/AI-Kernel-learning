@@ -192,34 +192,41 @@ Happy building!
 ### 1. Memory Hierarchy & Dataflow Architecture
 ```text
 +---------------------------------------------------------------------------------+
-| High-Capacity Storage / DRAM                                                    |
+| Source Repository Storage (CMakeLists.txt, .cu, .cpp, .cuh, Dependencies)        |
 +---------------------------------------------------------------------------------+
-        |  Asynchronous Vector Stream                       ^  Buffered Flush
-        v                                                   |
+        |  CMake Target Parsing & Dependency Graph Generation ^  Cache Invalidation
+        v                                                     |
 +---------------------------------------------------------------------------------+
-| Low-Latency On-Chip Storage / Shared Memory / L1 Cache                          |
+| Build Artifact Cache (Ninja Build Tree / CMakeCache.txt / Fatbins / PTX)         |
 +---------------------------------------------------------------------------------+
-        |  Register Slicing & Direct Compute                ^
-        v                                                   |
+        |  Device Linking (nvlink -rdc=true) & Host Archiving ^
+        v                                                     |
 +---------------------------------------------------------------------------------+
-| Functional Execution Units & Registers                                          |
+| Final Production Executable / Shared Object (.so) & CUDA Driver Symbols         |
 +---------------------------------------------------------------------------------+
 ```
 
 ### 2. Execution & Dataflow Graph
 ```mermaid
 graph TD
-    InputData[Input Data / Memory Buffers] --> Transform[Vectorized Transform & Boundary Guard]
-    Transform --> CacheStage[Cache / On-Chip Alignment]
-    CacheStage --> ComputeStage[Compute Pipeline & Reductions]
-    ComputeStage --> OutputData[Serialized / Coalesced Output]
+    subgraph CMakeConfigure [CMake Configuration & Dependency Resolution]
+        CMakeLists["CMakeLists.txt: project & enable_language CUDA"] --> TargetDef["add_library / add_executable"]
+        TargetDef --> ArchSpec["set_target_properties: CUDA_ARCHITECTURES 80;89;90a"]
+        ArchSpec --> InclDeps["target_link_libraries: CUDA::cudart, CUTLASS, NCCL"]
+    end
+    subgraph BuildPipeline [Separable Compilation & Linking Pipeline]
+        InclDeps --> NVCCCompile["NVCC Compile: Device Code to PTX / cubin"]
+        InclDeps --> HostCompile["Host Clang++/G++ Compile: Host Runtime Objects"]
+        NVCCCompile --> DeviceLink["nvlink: Separable Compilation -rdc=true"]
+        DeviceLink --> FinalLink["Host Linker: Combined Shared Library / Executable"]
+    end
 ```
 
-### 3. Architectural Foundations & Modern API Best Practices
-- **Memory Hierarchy Optimization:** Structuring data flows to fit into L1/L2 caches and GPU shared memory, minimizing DRAM traffic.
-- **Vectorized Data Movement:** Enforcing 64-bit and 128-bit memory transaction alignment to maximize bus throughput.
-- **Asynchronous Execution:** Employing modern async primitives and pipelining to hide memory access latency.
-- **Latest Stable Framework Alignment:** Complete avoidance of deprecated interfaces, targeting modern idioms.
+### 3. Modern CMake for CUDA & High-Performance Computing
+- **Native First-Class Language Support:** Utilizing `enable_language(CUDA)` rather than outdated `find_package(CUDA)`.
+- **Target-Centric Architecture:** Specifying include directories, compile flags, and libraries strictly through `target_include_directories`, `target_compile_options`, and `target_link_libraries`.
+- **Target Architecture Matrices:** Defining `CUDA_ARCHITECTURES` (`"80;89;90a"`) for multi-target fatbin generation, incorporating architecture-specific optimizations (such as SM90a WGMMA and TMA).
+- **Separable Compilation Management:** Explicitly controlling relocatable device code via `CUDA_SEPARABLE_COMPILATION ON` to allow cross-translation-unit device function calls.
 
 ### 4. Mathematical & Architectural Key Principles
 - **Arithmetic Intensity & Roofline Model:** Bound kernel efficiency by maximizing FLOPS per byte transferred from higher-latency memory tiers:
